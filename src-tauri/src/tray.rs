@@ -82,9 +82,7 @@ pub fn setup_tray(app: &AppHandle) {
             }
         });
 
-    if let Some(icon) = app.default_window_icon().cloned() {
-        builder = builder.icon(icon);
-    }
-
-    let _ = builder.build(app);
+    let _ = builder
+        .icon(tauri::include_image!("icons/tray.png"))
+        .build(app);
 }
