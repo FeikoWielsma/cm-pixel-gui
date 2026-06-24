@@ -4,19 +4,27 @@
     rotation = $bindable(),
     fps = $bindable(),
     autostart = $bindable(),
+    minimizeToTray = $bindable(true),
+    startMinimized = $bindable(false),
     onbrightness,
     onrotation,
     onfps,
     onautostart,
+    onminimizeToTray,
+    onstartMinimized,
   } = $props<{
     brightness: number;
     rotation: number;
     fps: number;
     autostart: boolean;
+    minimizeToTray?: boolean;
+    startMinimized?: boolean;
     onbrightness: (e: Event) => void;
     onrotation: (e: Event) => void;
     onfps: (e: Event) => void;
     onautostart: () => void;
+    onminimizeToTray: () => void;
+    onstartMinimized: () => void;
   }>();
 </script>
 
@@ -75,6 +83,32 @@
         onchange={onautostart}
       />
       Start App Automatically on Boot
+    </label>
+  </div>
+
+  <!-- Minimize to Tray -->
+  <div class="form-group checkbox-group">
+    <label class="checkbox-label" for="minimize-to-tray">
+      <input
+        type="checkbox"
+        id="minimize-to-tray"
+        bind:checked={minimizeToTray}
+        onchange={onminimizeToTray}
+      />
+      Minimize to Tray on Close
+    </label>
+  </div>
+
+  <!-- Start Minimized -->
+  <div class="form-group checkbox-group">
+    <label class="checkbox-label" for="start-minimized">
+      <input
+        type="checkbox"
+        id="start-minimized"
+        bind:checked={startMinimized}
+        onchange={onstartMinimized}
+      />
+      Start Minimized to Tray
     </label>
   </div>
 </div>

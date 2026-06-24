@@ -9,6 +9,8 @@
     setRotation,
     setFps,
     setAutostart,
+    setMinimizeToTray,
+    setStartMinimized,
     listAnimations,
     pickFile,
     stopCmService,
@@ -66,6 +68,8 @@
   let rotation: number = $state(0);
   let fps: number = $state(15);
   let autostart: boolean = $state(false);
+  let minimizeToTray: boolean = $state(true);
+  let startMinimized: boolean = $state(false);
 
   // Conflict status helper
   let resolvingConflict: boolean = $state(false);
@@ -116,6 +120,8 @@
     rotation = sets.rotation;
     fps = sets.fps;
     autostart = sets.autostart;
+    minimizeToTray = sets.minimize_to_tray;
+    startMinimized = sets.start_minimized;
 
     const m = sets.mode;
     selectedModeKind = m.kind;
@@ -319,6 +325,14 @@
     await setAutostart(autostart);
   }
 
+  async function toggleMinimizeToTray() {
+    await setMinimizeToTray(minimizeToTray);
+  }
+
+  async function toggleStartMinimized() {
+    await setStartMinimized(startMinimized);
+  }
+
   async function handleResolveConflict() {
     resolvingConflict = true;
     try {
@@ -455,10 +469,14 @@
           bind:rotation
           bind:fps
           bind:autostart
+          bind:minimizeToTray
+          bind:startMinimized
           onbrightness={updateBrightness}
           onrotation={updateRotation}
           onfps={updateFps}
           onautostart={toggleAutostart}
+          onminimizeToTray={toggleMinimizeToTray}
+          onstartMinimized={toggleStartMinimized}
         />
 
         <div class="app-info mt-6 text-center">

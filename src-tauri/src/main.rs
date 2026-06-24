@@ -36,21 +36,35 @@ fn main() {
             commands::set_rotation,
             commands::set_fps,
             commands::set_autostart,
+            commands::set_minimize_to_tray,
+            commands::set_start_minimized,
             commands::list_animations,
             commands::pick_file,
             commands::stop_cm_service,
         ])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                let engine = app.state::<Mutex<engine::Engine>>();
+                let minimize_to_tray = engine.lock().unwrap().settings.minimize_to_tray;
+                if minimize_to_tray {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(|app| {
-            // Initialize and start the engine
+            // Initialize and start the engine (loads persisted settings)
             let engine_state = app.state::<Mutex<engine::Engine>>();
             engine_state.lock().unwrap().start(app.handle().clone());
 
             // Initialize system tray
             tray::setup_tray(app.handle());
 
-            // Show window if not started minimized/hidden on boot
-            let start_minimized = std::env::args().any(|arg| arg == "--minimized" || arg == "--hidden");
-            if !start_minimized {
+            // Show window unless --minimized CLI arg or start_minimized setting is on
+            let cli_minimized = std::env::args().any(|arg| arg == "--minimized" || arg == "--hidden");
+            let setting_minimized = engine_state.lock().unwrap().settings.start_minimized;
+            if !cli_minimized && !setting_minimized {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();

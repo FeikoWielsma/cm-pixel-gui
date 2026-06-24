@@ -31,6 +31,8 @@ pub struct Settings {
     pub rotation: u16,
     pub fps: u16,
     pub autostart: bool,
+    pub minimize_to_tray: bool,
+    pub start_minimized: bool,
 }
 
 impl Default for Settings {
@@ -41,6 +43,8 @@ impl Default for Settings {
             rotation: 0,
             fps: 15,
             autostart: false,
+            minimize_to_tray: true,
+            start_minimized: false,
         }
     }
 }
@@ -322,6 +326,16 @@ impl Engine {
 
     pub fn set_autostart(&mut self, app: &AppHandle, on: bool) {
         self.settings.autostart = on;
+        self.trigger_update(app);
+    }
+
+    pub fn set_minimize_to_tray(&mut self, app: &AppHandle, on: bool) {
+        self.settings.minimize_to_tray = on;
+        self.trigger_update(app);
+    }
+
+    pub fn set_start_minimized(&mut self, app: &AppHandle, on: bool) {
+        self.settings.start_minimized = on;
         self.trigger_update(app);
     }
 

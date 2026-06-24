@@ -16,6 +16,8 @@ export interface Settings {
   rotation: number;
   fps: number;
   autostart: boolean;
+  minimize_to_tray: boolean;
+  start_minimized: boolean;
 }
 
 export interface Status {
@@ -37,6 +39,8 @@ export const setBrightness = (pct: number) => invoke<void>("set_brightness", { p
 export const setRotation = (deg: number) => invoke<void>("set_rotation", { deg });
 export const setFps = (v: number) => invoke<void>("set_fps", { v });
 export const setAutostart = (on: boolean) => invoke<void>("set_autostart", { on });
+export const setMinimizeToTray = (on: boolean) => invoke<void>("set_minimize_to_tray", { on });
+export const setStartMinimized = (on: boolean) => invoke<void>("set_start_minimized", { on });
 export const listAnimations = () => invoke<AnimInfo[]>("list_animations");
 export const pickFile = (kind: "image" | "gif") => invoke<string | null>("pick_file", { kind });
 export const stopCmService = () => invoke<void>("stop_cm_service");

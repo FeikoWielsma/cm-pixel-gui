@@ -50,6 +50,16 @@ pub fn set_autostart(app: AppHandle, engine: EngineState<'_>, on: bool) {
 }
 
 #[tauri::command]
+pub fn set_minimize_to_tray(app: AppHandle, engine: EngineState<'_>, on: bool) {
+    engine.lock().unwrap().set_minimize_to_tray(&app, on);
+}
+
+#[tauri::command]
+pub fn set_start_minimized(app: AppHandle, engine: EngineState<'_>, on: bool) {
+    engine.lock().unwrap().set_start_minimized(&app, on);
+}
+
+#[tauri::command]
 pub fn list_animations() -> Vec<AnimInfo> {
     crate::anim::list().to_vec()
 }
