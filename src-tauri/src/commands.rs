@@ -1,4 +1,5 @@
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
 
 use crate::anim::AnimInfo;
 use crate::engine::{Engine, Mode, Settings, Status};
@@ -16,28 +17,36 @@ pub fn get_settings(engine: EngineState<'_>) -> Settings {
 }
 
 #[tauri::command]
-pub fn set_mode(engine: EngineState<'_>, mode: Mode) {
-    engine.lock().unwrap().settings.mode = mode;
+pub fn set_mode(app: AppHandle, engine: EngineState<'_>, mode: Mode) {
+    engine.lock().unwrap().set_mode(&app, mode);
 }
 
 #[tauri::command]
-pub fn set_brightness(engine: EngineState<'_>, pct: u8) {
-    engine.lock().unwrap().settings.brightness = pct.min(100);
+pub fn set_brightness(app: AppHandle, engine: EngineState<'_>, pct: u8) {
+    engine.lock().unwrap().set_brightness(&app, pct);
 }
 
 #[tauri::command]
-pub fn set_rotation(engine: EngineState<'_>, deg: u16) {
-    engine.lock().unwrap().settings.rotation = deg % 360;
+pub fn set_rotation(app: AppHandle, engine: EngineState<'_>, deg: u16) {
+    engine.lock().unwrap().set_rotation(&app, deg);
 }
 
 #[tauri::command]
-pub fn set_fps(engine: EngineState<'_>, v: u16) {
-    engine.lock().unwrap().settings.fps = v.max(1).min(60);
+pub fn set_fps(app: AppHandle, engine: EngineState<'_>, v: u16) {
+    engine.lock().unwrap().set_fps(&app, v);
 }
 
 #[tauri::command]
-pub fn set_autostart(engine: EngineState<'_>, on: bool) {
-    engine.lock().unwrap().settings.autostart = on;
+pub fn set_autostart(app: AppHandle, engine: EngineState<'_>, on: bool) {
+    engine.lock().unwrap().set_autostart(&app, on);
+    // Sync with tauri-plugin-autostart
+    use tauri_plugin_autostart::ManagerExt;
+    let autostart_manager = app.autolaunch();
+    if on {
+        let _ = autostart_manager.enable();
+    } else {
+        let _ = autostart_manager.disable();
+    }
 }
 
 #[tauri::command]
@@ -46,13 +55,37 @@ pub fn list_animations() -> Vec<AnimInfo> {
 }
 
 #[tauri::command]
-pub fn pick_file(_kind: String) -> Option<String> {
-    // T5/T7: replace with tauri_plugin_dialog file picker
-    None
+pub async fn pick_file(app: AppHandle, kind: String) -> Result<Option<String>, String> {
+    let mut builder = app.dialog().file();
+    if kind == "image" {
+        builder = builder.add_filter("Images", &["png", "jpg", "jpeg", "webp"]);
+    } else if kind == "gif" {
+        builder = builder.add_filter("GIFs", &["gif"]);
+    }
+
+    let file_handle = builder.blocking_pick_file();
+    match file_handle {
+        Some(fp) => match fp.into_path() {
+            Ok(pb) => Ok(Some(pb.to_string_lossy().to_string())),
+            Err(e) => Err(e.to_string()),
+        },
+        None => Ok(None),
+    }
 }
 
 #[tauri::command]
 pub fn stop_cm_service() -> Result<(), String> {
-    // T9: elevate and run Stop-Service MasterCTRLService
-    Ok(())
+    use std::process::Command;
+    let status = Command::new("powershell")
+        .args(&[
+            "-Command",
+            "Start-Process powershell -ArgumentList 'Stop-Service -Name MasterCTRLService -Force' -Verb RunAs -Wait",
+        ])
+        .status();
+
+    match status {
+        Ok(s) if s.success() => Ok(()),
+        Ok(s) => Err(format!("Command exited with status: {}", s)),
+        Err(e) => Err(e.to_string()),
+    }
 }

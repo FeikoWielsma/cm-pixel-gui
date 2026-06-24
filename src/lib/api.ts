@@ -8,7 +8,7 @@ export type Mode =
   | { kind: "image"; path: string }
   | { kind: "gif"; path: string }
   | { kind: "text"; text: string; rgb: Rgb; scroll: boolean }
-  | { kind: "anim"; id: string; speed: number };
+  | { kind: "anim"; id: string; speed: number; params?: Record<string, any> | null };
 
 export interface Settings {
   mode: Mode;

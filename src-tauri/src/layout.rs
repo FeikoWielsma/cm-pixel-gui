@@ -28,3 +28,20 @@ pub fn cell_of_led() -> &'static [usize; NLED] {
         cells
     })
 }
+
+/// All (x, y) coordinates of active LEDs in the 32x32 layout.
+pub fn active_leds() -> &'static [(usize, usize)] {
+    static LEDS: OnceLock<Vec<(usize, usize)>> = OnceLock::new();
+    LEDS.get_or_init(|| {
+        let layout = layout();
+        let mut v = Vec::with_capacity(NLED);
+        for y in 0..32 {
+            for x in 0..32 {
+                if layout[y * 32 + x] != 0 {
+                    v.push((x, y));
+                }
+            }
+        }
+        v
+    })
+}

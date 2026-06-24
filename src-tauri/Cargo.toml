@@ -17,6 +17,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 hidapi = "2"
+rand = "0.8"
+image = "0.25"
 
 [profile.dev]
 incremental = true

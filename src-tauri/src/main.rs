@@ -10,14 +10,20 @@ mod layout;
 mod tray;
 
 use std::sync::Mutex;
+use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -34,6 +40,25 @@ fn main() {
             commands::pick_file,
             commands::stop_cm_service,
         ])
+        .setup(|app| {
+            // Initialize and start the engine
+            let engine_state = app.state::<Mutex<engine::Engine>>();
+            engine_state.lock().unwrap().start(app.handle().clone());
+
+            // Initialize system tray
+            tray::setup_tray(app.handle());
+
+            // Show window if not started minimized/hidden on boot
+            let start_minimized = std::env::args().any(|arg| arg == "--minimized" || arg == "--hidden");
+            if !start_minimized {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
