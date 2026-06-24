@@ -107,8 +107,14 @@
         return "background: radial-gradient(circle at 20% 30%, #fff 1px, transparent 2px), radial-gradient(circle at 75% 20%, #fff 1.5px, transparent 3px), radial-gradient(circle at 40% 70%, #fff 1px, transparent 2px); background-color: #08080a;";
       case "rubik":
         return "background: #0b0b0e;";
+      case "torus":
+        return "background: radial-gradient(circle at 50% 50%, transparent 18%, #bd93f9 22%, #8be9fd 30%, transparent 34%, transparent 42%, #bd93f9 44%, transparent 48%); background-color: #0b0b0e;";
+      case "julia":
+        return "background: radial-gradient(ellipse at 30% 40%, #ff79c6 0%, transparent 35%), radial-gradient(ellipse at 70% 60%, #8be9fd 0%, transparent 30%), radial-gradient(ellipse at 50% 50%, #bd93f9 0%, transparent 50%); background-color: #08080a;";
+      case "chroma_life":
+        return "background-color: #08080a; background-image: radial-gradient(circle at 25% 25%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 75% 25%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 50% 50%, #ffffff 1.5px, transparent 2px), radial-gradient(circle at 25% 75%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 75% 75%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 50% 25%, #ffffff 1.5px, transparent 2px); background-size: 100% 100%;";
       default:
-        return "background: linear-gradient(135deg, #007aff, #00c781);";
+        return "background: linear-gradient(135deg, #007aff, #00c781)";
     }
   };
 </script>
