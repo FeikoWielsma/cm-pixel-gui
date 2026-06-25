@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
   import { listen } from "@tauri-apps/api/event";
+  import { convertFileSrc } from "@tauri-apps/api/core";
   import layoutData from "../../reference/layout.json";
 
   let { 
