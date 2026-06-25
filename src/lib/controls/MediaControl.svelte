@@ -176,14 +176,15 @@
   /* Hex grid layout styles */
   .hex-grid {
     display: grid;
-    grid-template-columns: repeat(4, 60px);
-    grid-auto-rows: 70px;
+    grid-template-columns: repeat(3, 70px);
+    grid-auto-rows: 60px;
     column-gap: 0;
     row-gap: 0;
     justify-content: center;
     padding-top: 15px;
-    padding-bottom: 50px;
+    padding-bottom: 35px;
     margin: 0 auto;
+    width: 245px;
   }
 
   .hex-wrapper {
@@ -191,22 +192,23 @@
     flex-direction: column;
     align-items: center;
     position: relative;
-    width: 80px;
-    height: 70px;
+    width: 70px;
+    height: 80px;
   }
 
-  /* Shift even columns (Col 1 and Col 3) */
-  .hex-wrapper:nth-child(4n + 2),
-  .hex-wrapper:nth-child(4n + 4) {
-    transform: translateY(35px);
+  /* Shift alternate rows horizontally (Row 1, Row 3, etc.) */
+  .hex-wrapper:nth-child(6n + 4),
+  .hex-wrapper:nth-child(6n + 5),
+  .hex-wrapper:nth-child(6n + 6) {
+    transform: translateX(35px);
   }
 
   .hex-cell {
     position: relative;
-    width: 80px;
-    height: 70px;
+    width: 70px;
+    height: 80px;
     background-color: rgba(255, 255, 255, 0.03);
-    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     cursor: pointer;
     transition: transform 0.2s, filter 0.2s;
     overflow: hidden;
