@@ -29,6 +29,9 @@
   let imgWidth = $state(1000);
   let imgHeight = $state(1000);
 
+  // Loading state when files are importing/converting
+  let isLoading = $state(false);
+
   // Sync state when active image path changes
   let initialParams = $derived(
     settings?.image_parameters?.[path] || { zoom: 1.0, pan_x: 0.0, pan_y: 0.0 }
@@ -36,6 +39,7 @@
 
   $effect(() => {
     if (interactive && path) {
+      isLoading = true;
       // Use untrack so this effect only triggers when interactive or path changes.
       // Otherwise, dragging triggers this effect and resets local state repeatedly.
       const params = untrack(() => initialParams);
@@ -51,6 +55,10 @@
         img.onload = () => {
           imgWidth = img.naturalWidth;
           imgHeight = img.naturalHeight;
+          isLoading = false;
+        };
+        img.onerror = () => {
+          isLoading = false;
         };
       });
     }
@@ -250,6 +258,13 @@
     aria-label="Hexagon LED preview panel"
   >
     <canvas bind:this={canvas} width={SIZE} height={SIZE}></canvas>
+    
+    {#if isLoading}
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+      </div>
+    {/if}
+
     {#if interactive}
       <div class="drag-hint">Drag grid to Pan • Scroll to Zoom</div>
     {/if}
@@ -295,6 +310,38 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
     width: fit-content;
     margin: 0 auto;
+    position: relative;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(11, 11, 14, 0.6);
+    backdrop-filter: blur(4px);
+    border-radius: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: #007aff;
+    border-right-color: #00c781;
+    animation: spin 1s ease-in-out infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .canvas-container.interactive {
