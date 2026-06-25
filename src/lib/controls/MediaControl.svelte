@@ -23,6 +23,14 @@
   function getFilename(path: string): string {
     return path.split(/[\\/]/).pop() || "";
   }
+
+  let containerWidth = $state(245);
+
+  let sortedHistory = $derived(
+    [...history].sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0))
+  );
+
+  let columns = $derived(Math.max(3, Math.floor((containerWidth - 24 - 35) / 70)));
 </script>
 
 <div class="media-selector">
@@ -40,10 +48,12 @@
   {#if history && history.length > 0}
     <div class="history-section mt-4">
       <span class="history-title">Recent Gallery</span>
-      <div class="history-list">
-        <div class="hex-grid">
-          {#each history as item}
-            <div class="hex-wrapper">
+      <div class="history-list" bind:clientWidth={containerWidth}>
+        <div class="hex-grid" style="grid-template-columns: repeat({columns}, 70px); width: {columns * 70 + 35}px;">
+          {#each sortedHistory as item, i (item.path)}
+            {@const row = Math.floor(i / columns)}
+            {@const isShifted = row % 2 === 1}
+            <div class="hex-wrapper" class:shifted={isShifted}>
               <div 
                 role="button"
                 tabindex="0"
@@ -58,36 +68,40 @@
                 }}
                 title={getFilename(item.path)}
               >
-                <img 
-                  src={convertFileSrc(item.path)} 
-                  alt="thumbnail" 
-                  class="hex-thumb" 
-                />
-                <div class="hex-overlay">
-                  <div class="hex-action-row" style="justify-content: flex-end;">
-                    <button 
-                      class="action-btn fav-btn" 
-                      class:is-fav={item.favorite}
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        ontogglefavorite?.(item.path);
-                      }}
-                      title={item.favorite ? "Unfavorite" : "Favorite"}
-                    >
-                      ★
-                    </button>
-                  </div>
-                  <div class="hex-action-row" style="justify-content: center;">
-                    <button 
-                      class="action-btn del-btn" 
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        ondeletehistory?.(item.path);
-                      }}
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
+                <div class="hex-inner">
+                  <img 
+                    src={convertFileSrc(item.path)} 
+                    alt="thumbnail" 
+                    class="hex-thumb" 
+                  />
+                  <div class="hex-overlay">
+                    <div class="hex-action-row" style="justify-content: flex-end;">
+                      <button 
+                        class="action-btn fav-btn" 
+                        class:is-fav={item.favorite}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          ontogglefavorite?.(item.path);
+                        }}
+                        title={item.favorite ? "Unfavorite" : "Favorite"}
+                      >
+                        ★
+                      </button>
+                    </div>
+                    <div class="hex-action-row" style="justify-content: center;">
+                      <button 
+                        class="action-btn del-btn" 
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Remove this ${kind === "image" ? "image" : "GIF"} from your history?`)) {
+                            ondeletehistory?.(item.path);
+                          }
+                        }}
+                        title="Remove"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -176,7 +190,6 @@
   /* Hex grid layout styles */
   .hex-grid {
     display: grid;
-    grid-template-columns: repeat(3, 70px);
     grid-auto-rows: 60px;
     column-gap: 0;
     row-gap: 0;
@@ -184,7 +197,6 @@
     padding-top: 15px;
     padding-bottom: 35px;
     margin: 0 auto;
-    width: 245px;
   }
 
   .hex-wrapper {
@@ -196,10 +208,8 @@
     height: 80px;
   }
 
-  /* Shift alternate rows horizontally (Row 1, Row 3, etc.) */
-  .hex-wrapper:nth-child(6n + 4),
-  .hex-wrapper:nth-child(6n + 5),
-  .hex-wrapper:nth-child(6n + 6) {
+  /* Shift alternate rows horizontally */
+  .hex-wrapper.shifted {
     transform: translateX(35px);
   }
 
@@ -207,10 +217,10 @@
     position: relative;
     width: 70px;
     height: 80px;
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.12); /* slight borders */
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     cursor: pointer;
-    transition: transform 0.2s, filter 0.2s;
+    transition: transform 0.2s, filter 0.2s, background-color 0.2s;
     overflow: hidden;
     box-sizing: border-box;
     border: none;
@@ -219,14 +229,27 @@
   }
 
   .hex-cell:hover {
+    background-color: rgba(255, 255, 255, 0.35); /* hover border highlight */
     transform: scale(1.05);
     z-index: 10;
   }
 
   .hex-cell.active {
-    filter: drop-shadow(0 0 5px #007aff) brightness(1.1);
+    background: linear-gradient(135deg, #007aff, #00c781); /* gradient active border */
+    filter: drop-shadow(0 0 6px rgba(0, 122, 255, 0.8));
     transform: scale(1.05);
     z-index: 10;
+  }
+
+  .hex-inner {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    clip-path: inherit;
+    background-color: #0b0b0e;
+    box-sizing: border-box;
   }
 
   .hex-thumb {
