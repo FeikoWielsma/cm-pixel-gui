@@ -56,9 +56,14 @@
     }
   });
 
-  // Calculate clamp limits based on the canvas size
-  let maxPanX = $derived(160 * (zoom - 1));
-  let maxPanY = $derived(160 * (zoom - 1));
+  // Calculate clamp limits based on the canvas size and aspect ratio
+  let aspectRatio = $derived(imgWidth / imgHeight);
+  let maxPanX = $derived(
+    aspectRatio > 1.0 ? 160 * (aspectRatio * zoom - 1) : 160 * (zoom - 1)
+  );
+  let maxPanY = $derived(
+    aspectRatio < 1.0 ? 160 * ((1.0 / aspectRatio) * zoom - 1) : 160 * (zoom - 1)
+  );
 
   // Pointer state
   let isDragging = false;
@@ -106,6 +111,7 @@
   function handlePointerDown(e: PointerEvent) {
     if (!interactive) return;
     e.preventDefault();
+    (e.currentTarget as HTMLElement).focus();
     isDragging = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     startX = e.clientX;
@@ -306,6 +312,7 @@
     outline: none;
   }
 
+  .canvas-container.interactive:focus,
   .canvas-container.interactive:focus-visible {
     border-color: #007aff;
     box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
