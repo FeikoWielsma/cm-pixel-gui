@@ -56,7 +56,7 @@
                     onselecthistory?.(item.path);
                   }
                 }}
-                title={item.path}
+                title={getFilename(item.path)}
               >
                 <img 
                   src={convertFileSrc(item.path)} 
@@ -91,7 +91,6 @@
                   </div>
                 </div>
               </div>
-              <span class="hex-label">{getFilename(item.path)}</span>
             </div>
           {/each}
         </div>
@@ -176,18 +175,29 @@
 
   /* Hex grid layout styles */
   .hex-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px 12px;
-    justify-content: flex-start;
-    padding: 8px 4px;
+    display: grid;
+    grid-template-columns: repeat(4, 54px);
+    grid-auto-rows: 60px;
+    column-gap: 0;
+    row-gap: 0;
+    justify-content: center;
+    padding-top: 15px;
+    padding-bottom: 45px;
+    margin: 0 auto;
   }
 
   .hex-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 75px;
+    position: relative;
+    width: 70px;
+  }
+
+  /* Shift even columns (Col 1 and Col 3) */
+  .hex-wrapper:nth-child(4n + 2),
+  .hex-wrapper:nth-child(4n + 4) {
+    transform: translateY(30px);
   }
 
   .hex-cell {
@@ -260,22 +270,6 @@
     display: flex;
     width: 100%;
     pointer-events: auto;
-  }
-
-  .hex-label {
-    font-size: 0.7rem;
-    color: #8c8c9a;
-    margin-top: 6px;
-    text-align: center;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .hex-cell.active + .hex-label {
-    color: #ffffff;
-    font-weight: 600;
   }
 
   .action-btn {
