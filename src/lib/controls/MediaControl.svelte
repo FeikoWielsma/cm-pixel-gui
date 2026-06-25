@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { convertFileSrc } from "@tauri-apps/api/core";
   import type { HistoryItem } from "../api";
 
   let {
@@ -38,36 +39,62 @@
 
   {#if history && history.length > 0}
     <div class="history-section mt-4">
-      <span class="history-title">Recent Files</span>
+      <span class="history-title">Recent Gallery</span>
       <div class="history-list">
-        {#each history as item}
-          <div class="history-item" class:active={selectedPath === item.path}>
-            <button 
-              class="history-path-btn truncate" 
-              onclick={() => onselecthistory?.(item.path)}
-              title={item.path}
-            >
-              {getFilename(item.path)}
-            </button>
-            <div class="history-actions">
-              <button 
-                class="action-btn fav-btn" 
-                class:is-fav={item.favorite}
-                onclick={() => ontogglefavorite?.(item.path)}
-                title={item.favorite ? "Unfavorite" : "Favorite"}
+        <div class="hex-grid">
+          {#each history as item}
+            <div class="hex-wrapper">
+              <div 
+                role="button"
+                tabindex="0"
+                class="hex-cell" 
+                class:active={selectedPath === item.path}
+                class:has-fav={item.favorite}
+                onclick={() => onselecthistory?.(item.path)}
+                onkeydown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    onselecthistory?.(item.path);
+                  }
+                }}
+                title={item.path}
               >
-                ★
-              </button>
-              <button 
-                class="action-btn del-btn" 
-                onclick={() => ondeletehistory?.(item.path)}
-                title="Remove from history"
-              >
-                ✕
-              </button>
+                <img 
+                  src={convertFileSrc(item.path)} 
+                  alt="thumbnail" 
+                  class="hex-thumb" 
+                />
+                <div class="hex-overlay">
+                  <div class="hex-action-row" style="justify-content: flex-end;">
+                    <button 
+                      class="action-btn fav-btn" 
+                      class:is-fav={item.favorite}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        ontogglefavorite?.(item.path);
+                      }}
+                      title={item.favorite ? "Unfavorite" : "Favorite"}
+                    >
+                      ★
+                    </button>
+                  </div>
+                  <div class="hex-action-row" style="justify-content: center;">
+                    <button 
+                      class="action-btn del-btn" 
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        ondeletehistory?.(item.path);
+                      }}
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <span class="hex-label">{getFilename(item.path)}</span>
             </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
     </div>
   {/if}
@@ -142,67 +169,132 @@
     letter-spacing: 0.05em;
   }
   .history-list {
+    max-height: 250px;
+    overflow-y: auto;
+    width: 100%;
+  }
+
+  /* Hex grid layout styles */
+  .hex-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 12px;
+    justify-content: flex-start;
+    padding: 8px 4px;
+  }
+
+  .hex-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 180px;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
-  .history-item {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    background-color: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
-    padding: 6px 10px;
-    transition: all 0.2s ease;
-    width: 100%;
+    width: 75px;
+  }
+
+  .hex-cell {
+    position: relative;
+    width: 70px;
+    height: 80px;
+    background-color: rgba(255, 255, 255, 0.03);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    cursor: pointer;
+    transition: transform 0.2s, filter 0.2s;
+    overflow: hidden;
     box-sizing: border-box;
-  }
-  .history-item:hover {
-    background-color: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-  .history-item.active {
-    background-color: rgba(0, 122, 255, 0.1);
-    border-color: rgba(0, 122, 255, 0.3);
-  }
-  .history-path-btn {
-    background: none;
     border: none;
     padding: 0;
     margin: 0;
-    color: #c5c5d2;
-    font-size: 0.85rem;
-    cursor: pointer;
-    text-align: left;
-    flex-grow: 1;
-    max-width: calc(100% - 60px);
-    font-family: inherit;
   }
-  .history-item.active .history-path-btn {
+
+  .hex-cell:hover {
+    transform: scale(1.05);
+  }
+
+  .hex-cell.active {
+    filter: drop-shadow(0 0 5px #007aff) brightness(1.1);
+    transform: scale(1.05);
+  }
+
+  .hex-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-color: #08080a;
+  }
+
+  .hex-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 12px 6px;
+    box-sizing: border-box;
+  }
+
+  .hex-cell:hover .hex-overlay,
+  .hex-cell.has-fav .hex-overlay {
+    opacity: 1;
+  }
+
+  .hex-cell.has-fav:not(:hover) .hex-overlay {
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .hex-cell.has-fav:not(:hover) .del-btn {
+    display: none;
+  }
+
+  .hex-cell.has-fav:not(:hover) .fav-btn {
+    color: #ffb703;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+  }
+
+  .hex-action-row {
+    display: flex;
+    width: 100%;
+    pointer-events: auto;
+  }
+
+  .hex-label {
+    font-size: 0.7rem;
+    color: #8c8c9a;
+    margin-top: 6px;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hex-cell.active + .hex-label {
     color: #ffffff;
     font-weight: 600;
   }
-  .history-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
+
   .action-btn {
     background: none;
     border: none;
-    padding: 4px;
+    padding: 2px;
     margin: 0;
     font-size: 0.9rem;
     cursor: pointer;
     line-height: 1;
-    color: rgba(255, 255, 255, 0.3);
-    transition: color 0.2s;
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.2s, transform 0.2s;
     font-family: inherit;
   }
+
+  .action-btn:hover {
+    transform: scale(1.2);
+  }
+
   .fav-btn:hover {
     color: #ffb703;
   }
