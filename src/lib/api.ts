@@ -12,6 +12,11 @@ export type Mode =
   | { kind: "raw" }
   | { kind: "loop"; ids: string[]; interval_secs: number };
 
+export interface HistoryItem {
+  path: string;
+  favorite: boolean;
+}
+
 export interface Settings {
   mode: Mode;
   brightness: number;
@@ -20,6 +25,8 @@ export interface Settings {
   autostart: boolean;
   minimize_to_tray: boolean;
   start_minimized: boolean;
+  recent_images: HistoryItem[];
+  recent_gifs: HistoryItem[];
 }
 
 export interface Status {
@@ -47,3 +54,5 @@ export const listAnimations = () => invoke<AnimInfo[]>("list_animations");
 export const pickFile = (kind: "image" | "gif") => invoke<string | null>("pick_file", { kind });
 export const stopCmService = () => invoke<void>("stop_cm_service");
 export const setRawFrame = (px: Rgb[]) => invoke<void>("set_raw_frame", { px });
+export const toggleFavorite = (kind: "image" | "gif", path: string) => invoke<Settings>("toggle_favorite", { kind, path });
+export const deleteHistory = (kind: "image" | "gif", path: string) => invoke<Settings>("delete_history", { kind, path });

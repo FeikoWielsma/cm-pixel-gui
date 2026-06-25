@@ -42,6 +42,8 @@ fn main() {
             commands::pick_file,
             commands::stop_cm_service,
             commands::set_raw_frame,
+            commands::toggle_favorite,
+            commands::delete_history,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

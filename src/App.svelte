@@ -15,6 +15,8 @@
     pickFile,
     stopCmService,
     setRawFrame, // ponytail: import setRawFrame
+    toggleFavorite,
+    deleteHistory,
     type Status,
     type Settings,
     type AnimInfo,
@@ -297,10 +299,10 @@
         scroll: textScroll,
       };
     } else if (selectedModeKind === "image") {
-      if (!selectedImage) return alert("Please select an image file first");
+      if (!selectedImage) return;
       modePayload = { kind: "image" as const, path: selectedImage };
     } else if (selectedModeKind === "gif") {
-      if (!selectedGif) return alert("Please select a GIF file first");
+      if (!selectedGif) return;
       modePayload = { kind: "gif" as const, path: selectedGif };
     } else if (selectedModeKind === "anim") {
       let params: Record<string, any> | null = null;
@@ -444,6 +446,40 @@
     }
   }
 
+  async function handleToggleFavorite(kind: "image" | "gif", path: string) {
+    try {
+      const updatedSettings = await toggleFavorite(kind, path);
+      settings = updatedSettings;
+    } catch (e) {
+      console.error("Failed to toggle favorite:", e);
+    }
+  }
+
+  async function handleDeleteHistory(kind: "image" | "gif", path: string) {
+    try {
+      const updatedSettings = await deleteHistory(kind, path);
+      settings = updatedSettings;
+      if (kind === "image" && selectedImage === path) {
+        selectedImage = "";
+        await applyMode();
+      } else if (kind === "gif" && selectedGif === path) {
+        selectedGif = "";
+        await applyMode();
+      }
+    } catch (e) {
+      console.error("Failed to delete history item:", e);
+    }
+  }
+
+  async function handleSelectHistory(kind: "image" | "gif", path: string) {
+    if (kind === "image") {
+      selectedImage = path;
+    } else {
+      selectedGif = path;
+    }
+    await applyMode();
+  }
+
   async function updateBrightness(e: Event) {
     const val = parseInt((e.target as HTMLInputElement).value);
     await setBrightness(val);
@@ -572,9 +608,25 @@
               onapply={applyMode}
             />
           {:else if selectedModeKind === "image"}
-            <MediaControl kind="image" bind:selectedPath={selectedImage} onpick={handlePickImage} />
+            <MediaControl 
+              kind="image" 
+              bind:selectedPath={selectedImage} 
+              onpick={handlePickImage} 
+              history={settings?.recent_images || []}
+              ontogglefavorite={(path) => handleToggleFavorite("image", path)}
+              ondeletehistory={(path) => handleDeleteHistory("image", path)}
+              onselecthistory={(path) => handleSelectHistory("image", path)}
+            />
           {:else if selectedModeKind === "gif"}
-            <MediaControl kind="gif" bind:selectedPath={selectedGif} onpick={handlePickGif} />
+            <MediaControl 
+              kind="gif" 
+              bind:selectedPath={selectedGif} 
+              onpick={handlePickGif} 
+              history={settings?.recent_gifs || []}
+              ontogglefavorite={(path) => handleToggleFavorite("gif", path)}
+              ondeletehistory={(path) => handleDeleteHistory("gif", path)}
+              onselecthistory={(path) => handleSelectHistory("gif", path)}
+            />
           {:else if selectedModeKind === "anim"}
             <AnimControl
               {animations}

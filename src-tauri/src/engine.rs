@@ -26,6 +26,12 @@ impl Default for Mode {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct HistoryItem {
+    pub path: String,
+    pub favorite: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub mode: Mode,
@@ -35,6 +41,10 @@ pub struct Settings {
     pub autostart: bool,
     pub minimize_to_tray: bool,
     pub start_minimized: bool,
+    #[serde(default)]
+    pub recent_images: Vec<HistoryItem>,
+    #[serde(default)]
+    pub recent_gifs: Vec<HistoryItem>,
 }
 
 impl Default for Settings {
@@ -47,6 +57,8 @@ impl Default for Settings {
             autostart: false,
             minimize_to_tray: true,
             start_minimized: false,
+            recent_images: Vec::new(),
+            recent_gifs: Vec::new(),
         }
     }
 }
@@ -63,6 +75,30 @@ enum ConnectionResult {
     Success(PixelDevice),
     Conflict,
     Disconnected,
+}
+
+fn add_to_history(list: &mut Vec<HistoryItem>, path: String) {
+    if let Some(pos) = list.iter().position(|item| item.path == path) {
+        let item = list.remove(pos);
+        list.insert(0, item);
+    } else {
+        list.insert(0, HistoryItem { path, favorite: false });
+    }
+    
+    if list.len() > 10 {
+        let mut i = list.len() - 1;
+        let mut removed = 0;
+        let target_to_remove = list.len() - 10;
+        while i > 0 && removed < target_to_remove {
+            if !list[i].favorite {
+                list.remove(i);
+                removed += 1;
+            }
+            if i > 0 {
+                i -= 1;
+            }
+        }
+    }
 }
 
 /// Render-loop engine (T5). Owns the device and the current mode.
@@ -360,6 +396,19 @@ impl Engine {
     }
 
     pub fn set_mode(&mut self, app: &AppHandle, mode: Mode) {
+        match &mode {
+            Mode::Image { path } => {
+                if !path.is_empty() {
+                    add_to_history(&mut self.settings.recent_images, path.clone());
+                }
+            }
+            Mode::Gif { path } => {
+                if !path.is_empty() {
+                    add_to_history(&mut self.settings.recent_gifs, path.clone());
+                }
+            }
+            _ => {}
+        }
         self.settings.mode = mode;
         self.trigger_update(app);
     }
@@ -394,7 +443,7 @@ impl Engine {
         self.trigger_update(app);
     }
 
-    fn trigger_update(&mut self, app: &AppHandle) {
+    pub fn trigger_update(&mut self, app: &AppHandle) {
         crate::config::save(app, &self.settings);
         if let Some(ref tx) = self.tx {
             let _ = tx.send(self.settings.clone());

@@ -113,3 +113,35 @@ pub fn set_raw_frame(engine: EngineState<'_>, px: Vec<[u8; 3]>) {
         }
     }
 }
+
+#[tauri::command]
+pub fn toggle_favorite(app: AppHandle, engine: EngineState<'_>, kind: String, path: String) -> Settings {
+    let mut eng = engine.lock().unwrap();
+    let list = if kind == "image" {
+        &mut eng.settings.recent_images
+    } else {
+        &mut eng.settings.recent_gifs
+    };
+    
+    if let Some(item) = list.iter_mut().find(|i| i.path == path) {
+        item.favorite = !item.favorite;
+    }
+    
+    eng.trigger_update(&app);
+    eng.settings.clone()
+}
+
+#[tauri::command]
+pub fn delete_history(app: AppHandle, engine: EngineState<'_>, kind: String, path: String) -> Settings {
+    let mut eng = engine.lock().unwrap();
+    let list = if kind == "image" {
+        &mut eng.settings.recent_images
+    } else {
+        &mut eng.settings.recent_gifs
+    };
+    
+    list.retain(|i| i.path != path);
+    
+    eng.trigger_update(&app);
+    eng.settings.clone()
+}
