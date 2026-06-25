@@ -23,7 +23,6 @@
     type Rgb
   } from "./lib/api";
   import HexPreview from "./lib/HexPreview.svelte";
-  import ZoomPanPreview from "./lib/ZoomPanPreview.svelte";
   import { DOOM } from "wasm-doom"; // ponytail: import DOOM class from wasm-doom
 
   // Child components
@@ -569,18 +568,18 @@
       </div>
     </div>
 
-    <!-- Hexagon Canvas rendering 556 LEDs or Zoom/Pan Preview -->
+    <!-- Hexagon Canvas rendering 556 LEDs -->
     {#if selectedModeKind === "image" && selectedImage}
-      <ZoomPanPreview
+      <HexPreview
+        interactive={true}
         path={selectedImage}
-        kind="image"
         {settings}
         onchange={(z, px, py) => handleZoomPanChange("image", selectedImage, z, px, py)}
       />
     {:else if selectedModeKind === "gif" && selectedGif}
-      <ZoomPanPreview
+      <HexPreview
+        interactive={true}
         path={selectedGif}
-        kind="gif"
         {settings}
         onchange={(z, px, py) => handleZoomPanChange("gif", selectedGif, z, px, py)}
       />

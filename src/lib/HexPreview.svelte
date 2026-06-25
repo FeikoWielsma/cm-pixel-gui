@@ -3,9 +3,126 @@
   import { listen } from "@tauri-apps/api/event";
   import layoutData from "../../reference/layout.json";
 
+  let { 
+    interactive = false, 
+    path = "", 
+    settings = null, 
+    onchange 
+  } = $props<{
+    interactive?: boolean;
+    path?: string;
+    settings?: any;
+    onchange?: (zoom: number, panX: number, panY: number) => void;
+  }>();
+
   let canvas: HTMLCanvasElement;
   let unlisten: (() => void) | undefined;
   const SIZE = 320; // display pixels
+
+  // Local state for zoom and pan when interactive
+  let zoom = $state(1.0);
+  let panX = $state(0.0);
+  let panY = $state(0.0);
+
+  // Sync state when active image path changes
+  let initialParams = $derived(
+    settings?.image_parameters?.[path] || { zoom: 1.0, pan_x: 0.0, pan_y: 0.0 }
+  );
+
+  $effect(() => {
+    if (interactive && path) {
+      zoom = initialParams.zoom;
+      // We scale the normalized pan offset (-0.5 to 0.5) to a pixel offset based on the SIZE of the canvas
+      panX = initialParams.pan_x * SIZE;
+      panY = initialParams.pan_y * SIZE;
+    }
+  });
+
+  // Calculate clamp limits based on the canvas size
+  let maxPanX = $derived(160 * (zoom - 1));
+  let maxPanY = $derived(160 * (zoom - 1));
+
+  // Pointer state
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startPanX = 0;
+  let startPanY = 0;
+  let debounceTimeout: any;
+
+  function debouncedSyncSettings() {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+      onchange?.(zoom, panX / SIZE, panY / SIZE);
+    }, 50);
+  }
+
+  function handlePointerDown(e: PointerEvent) {
+    if (!interactive) return;
+    e.preventDefault();
+    isDragging = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    startX = e.clientX;
+    startY = e.clientY;
+    startPanX = panX;
+    startPanY = panY;
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    if (!interactive || !isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    const newPanX = startPanX + dx;
+    const newPanY = startPanY + dy;
+
+    // Clamp limits
+    panX = Math.max(-maxPanX, Math.min(maxPanX, newPanX));
+    panY = Math.max(-maxPanY, Math.min(maxPanY, newPanY));
+
+    debouncedSyncSettings();
+  }
+
+  function handlePointerUp(e: PointerEvent) {
+    if (isDragging) {
+      isDragging = false;
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      clearTimeout(debounceTimeout);
+      onchange?.(zoom, panX / SIZE, panY / SIZE);
+    }
+  }
+
+  function handleWheel(e: WheelEvent) {
+    if (!interactive) return;
+    e.preventDefault();
+    const delta = -e.deltaY * 0.002;
+    const newZoom = Math.max(1.0, Math.min(10.0, zoom + delta));
+    
+    if (newZoom !== zoom) {
+      zoom = newZoom;
+      const limit = 160 * (zoom - 1);
+      panX = Math.max(-limit, Math.min(limit, panX));
+      panY = Math.max(-limit, Math.min(limit, panY));
+      debouncedSyncSettings();
+    }
+  }
+
+  function handleZoomSlider(e: Event) {
+    const target = e.target as HTMLInputElement;
+    zoom = parseFloat(target.value);
+    const limit = 160 * (zoom - 1);
+    panX = Math.max(-limit, Math.min(limit, panX));
+    panY = Math.max(-limit, Math.min(limit, panY));
+    debouncedSyncSettings();
+  }
+
+  function reset() {
+    zoom = 1.0;
+    panX = 0.0;
+    panY = 0.0;
+    clearTimeout(debounceTimeout);
+    onchange?.(zoom, panX / SIZE, panY / SIZE);
+  }
 
   onMount(async () => {
     unlisten = await listen<number[][][]>("preview", ({ payload }) => {
@@ -64,11 +181,53 @@
   }
 </script>
 
-<div class="canvas-container">
-  <canvas bind:this={canvas} width={SIZE} height={SIZE}></canvas>
+<div class="preview-wrapper">
+  <div 
+    class="canvas-container"
+    class:interactive={interactive}
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onpointercancel={handlePointerUp}
+    onwheel={handleWheel}
+    role="application"
+    aria-label="Hexagon LED preview panel"
+  >
+    <canvas bind:this={canvas} width={SIZE} height={SIZE}></canvas>
+    {#if interactive}
+      <div class="drag-hint">Drag grid to Pan • Scroll to Zoom</div>
+    {/if}
+  </div>
+
+  {#if interactive}
+    <div class="control-row">
+      <div class="zoom-label">Zoom: {zoom.toFixed(1)}x</div>
+      <input
+        type="range"
+        min="1.0"
+        max="10.0"
+        step="0.1"
+        value={zoom}
+        oninput={handleZoomSlider}
+        class="zoom-slider"
+      />
+      <button class="btn-reset" onclick={reset} title="Reset Zoom/Pan">
+        ↺
+      </button>
+    </div>
+  {/if}
 </div>
 
 <style>
+  .preview-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
   .canvas-container {
     display: flex;
     justify-content: center;
@@ -81,8 +240,105 @@
     width: fit-content;
     margin: 0 auto;
   }
+
+  .canvas-container.interactive {
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    position: relative;
+  }
+
+  .canvas-container.interactive:active {
+    cursor: grabbing;
+  }
+
   canvas {
     display: block;
     background: transparent;
+  }
+
+  .drag-hint {
+    position: absolute;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(11, 11, 14, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 320px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 10px 14px;
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+
+  .zoom-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #8c8c9a;
+    width: 75px;
+    text-align: left;
+  }
+
+  .zoom-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #007aff;
+    transition: transform 0.1s;
+  }
+
+  .zoom-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: #00c781;
+  }
+
+  .btn-reset {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    width: 24px;
+    height: 24px;
+  }
+
+  .btn-reset:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    transform: rotate(-45deg);
   }
 </style>
