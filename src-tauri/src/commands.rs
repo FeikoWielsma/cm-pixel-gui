@@ -99,3 +99,17 @@ pub fn stop_cm_service() -> Result<(), String> {
         Err(e) => Err(e.to_string()),
     }
 }
+
+#[tauri::command]
+pub fn set_raw_frame(engine: EngineState<'_>, px: Vec<[u8; 3]>) {
+    // ponytail: update raw frame buffer for live-streaming (e.g. Doom)
+    if px.len() == 1024 {
+        let eng = engine.lock().unwrap();
+        let mut rf = eng.raw_frame.lock().unwrap();
+        for y in 0..32 {
+            for x in 0..32 {
+                rf.px[y][x] = px[y * 32 + x];
+            }
+        }
+    }
+}

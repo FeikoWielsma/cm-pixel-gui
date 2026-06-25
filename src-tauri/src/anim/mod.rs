@@ -1,7 +1,10 @@
 pub mod procedural;
 pub mod rubik;
+pub mod soccer;
 pub mod text;
 pub mod media;
+pub mod icecube;
+
 
 use crate::canvas::Canvas;
 
@@ -40,6 +43,8 @@ pub const ANIM_IDS: &[AnimInfo] = &[
     AnimInfo { id: "torus",        label: "Torus 3D" },
     AnimInfo { id: "julia",        label: "Julia Fractal" },
     AnimInfo { id: "chroma_life",  label: "Chroma Life" },
+    AnimInfo { id: "icecube",      label: "Ice Cube" },
+    AnimInfo { id: "soccer",       label: "Soccer" },
 ];
 
 pub fn list() -> &'static [AnimInfo] {
@@ -169,6 +174,22 @@ pub fn make(id: &str, speed: f32, params: Option<&serde_json::Value>) -> Option<
         "torus" => Some(Box::new(procedural::Torus::new(speed, palette))),
         "julia" => Some(Box::new(procedural::Julia::new(speed, zoom, palette))),
         "chroma_life" => Some(Box::new(procedural::ChromaLife::new(speed, palette))),
+        "icecube" => {
+            let scale_val = params
+                .and_then(|p| p.get("scale"))
+                .and_then(|v| v.as_f64())
+                .map(|v| v as f32)
+                .unwrap_or(9.0);
+            let ax = params
+                .and_then(|p| p.get("angle_x"))
+                .and_then(|v| v.as_f64())
+                .map(|v| v as f32)
+                .unwrap_or(35.26);
+            Some(Box::new(icecube::Icecube::new(
+                speed, palette, ax, angle_y, scale_val, pan_x, pan_y, fixed_color,
+            )))
+        }
+        "soccer" => Some(Box::new(soccer::Soccer::new(speed))),
         _ => None,
     }
 }

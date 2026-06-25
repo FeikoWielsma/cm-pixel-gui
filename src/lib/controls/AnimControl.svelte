@@ -21,6 +21,12 @@
     rubikScale = $bindable(6.3),
     rubikPanX = $bindable(0.0),
     rubikPanY = $bindable(0.0),
+    icecubeAngleX = $bindable(35.26),
+    icecubeAngleY = $bindable(45.0),
+    icecubeScale = $bindable(9.0),
+    icecubePanX = $bindable(0.0),
+    icecubePanY = $bindable(0.0),
+    icecubeColorHex = $bindable("#8cddff"),
     bounceBallSize = $bindable(1.5),
     juliaZoom = $bindable(1.0),
     onchange,
@@ -44,6 +50,12 @@
     rubikScale?: number;
     rubikPanX?: number;
     rubikPanY?: number;
+    icecubeAngleX?: number;
+    icecubeAngleY?: number;
+    icecubeScale?: number;
+    icecubePanX?: number;
+    icecubePanY?: number;
+    icecubeColorHex?: string;
     bounceBallSize?: number;
     juliaZoom?: number;
     onchange: () => void;
@@ -64,7 +76,7 @@
     "plasma", "rainbow", "swirl", "ripple", "tunnel",
     "metaballs", "fireworks", "pinwheel", "interference",
     "bounce", "twinkle", "rubik", "breathe",
-    "torus", "julia", "chroma_life"
+    "torus", "julia", "chroma_life", "icecube"
   ].includes(selectedAnimId));
 
   const getThumbnailStyle = (id: string) => {
@@ -107,12 +119,16 @@
         return "background: radial-gradient(circle at 20% 30%, #fff 1px, transparent 2px), radial-gradient(circle at 75% 20%, #fff 1.5px, transparent 3px), radial-gradient(circle at 40% 70%, #fff 1px, transparent 2px); background-color: #08080a;";
       case "rubik":
         return "background: #0b0b0e;";
+      case "icecube":
+        return "background: radial-gradient(circle at 30% 30%, #e0f7ff, transparent 80%), linear-gradient(135deg, #00b0ff, #0060b2);";
       case "torus":
         return "background: radial-gradient(circle at 50% 50%, transparent 18%, #bd93f9 22%, #8be9fd 30%, transparent 34%, transparent 42%, #bd93f9 44%, transparent 48%); background-color: #0b0b0e;";
       case "julia":
         return "background: radial-gradient(ellipse at 30% 40%, #ff79c6 0%, transparent 35%), radial-gradient(ellipse at 70% 60%, #8be9fd 0%, transparent 30%), radial-gradient(ellipse at 50% 50%, #bd93f9 0%, transparent 50%); background-color: #08080a;";
       case "chroma_life":
         return "background-color: #08080a; background-image: radial-gradient(circle at 25% 25%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 75% 25%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 50% 50%, #ffffff 1.5px, transparent 2px), radial-gradient(circle at 25% 75%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 75% 75%, #50fa7b 1.5px, transparent 2px), radial-gradient(circle at 50% 25%, #ffffff 1.5px, transparent 2px); background-size: 100% 100%;";
+      case "soccer":
+        return "background: linear-gradient(90deg, #0a5c12 0%, #0d7018 25%, #0a5c12 50%, #0d7018 75%, #0a5c12 100%);";
       default:
         return "background: linear-gradient(135deg, #007aff, #00c781)";
     }
@@ -410,6 +426,89 @@
   </div>
 {/if}
 
+{#if selectedAnimId === 'icecube'}
+  <div class="form-group mt-4 animate-fade-in">
+    <div class="slider-header">
+      <label class="control-label" for="icecube-angle-x">Tilt X</label>
+      <span class="slider-val">{icecubeAngleX.toFixed(0)}°</span>
+    </div>
+    <input
+      type="range"
+      id="icecube-angle-x"
+      min="0"
+      max="360"
+      step="1"
+      bind:value={icecubeAngleX}
+      onchange={onchange}
+    />
+  </div>
+
+  <div class="form-group mt-4 animate-fade-in">
+    <div class="slider-header">
+      <label class="control-label" for="icecube-angle-y">Tilt Y</label>
+      <span class="slider-val">{icecubeAngleY.toFixed(0)}°</span>
+    </div>
+    <input
+      type="range"
+      id="icecube-angle-y"
+      min="0"
+      max="360"
+      step="1"
+      bind:value={icecubeAngleY}
+      onchange={onchange}
+    />
+  </div>
+
+  <div class="form-group mt-4 animate-fade-in">
+    <div class="slider-header">
+      <label class="control-label" for="icecube-scale">Zoom</label>
+      <span class="slider-val">{icecubeScale.toFixed(1)}x</span>
+    </div>
+    <input
+      type="range"
+      id="icecube-scale"
+      min="1.0"
+      max="15.0"
+      step="0.1"
+      bind:value={icecubeScale}
+      onchange={onchange}
+    />
+  </div>
+
+  <div class="form-group mt-4 animate-fade-in">
+    <div class="slider-header">
+      <label class="control-label" for="icecube-pan-x">Pan X</label>
+      <span class="slider-val">{icecubePanX.toFixed(1)}</span>
+    </div>
+    <input
+      type="range"
+      id="icecube-pan-x"
+      min="-15.0"
+      max="15.0"
+      step="0.5"
+      bind:value={icecubePanX}
+      onchange={onchange}
+    />
+  </div>
+
+  <div class="form-group mt-4 animate-fade-in">
+    <div class="slider-header">
+      <label class="control-label" for="icecube-pan-y">Pan Y</label>
+      <span class="slider-val">{icecubePanY.toFixed(1)}</span>
+    </div>
+    <input
+      type="range"
+      id="icecube-pan-y"
+      min="-15.0"
+      max="15.0"
+      step="0.5"
+      bind:value={icecubePanY}
+      onchange={onchange}
+    />
+  </div>
+{/if}
+
+
 {#if selectedAnimId === 'bounce'}
   <div class="form-group mt-4 animate-fade-in">
     <div class="slider-header">
@@ -468,8 +567,13 @@
     <div class="form-group mt-4 animate-fade-in">
       <span class="control-label">Fixed Color</span>
       <div class="color-picker-row">
-        <input type="color" id="breathe-color" bind:value={breatheColorHex} oninput={onchange} />
-        <span class="color-text">{breatheColorHex.toUpperCase()}</span>
+        {#if selectedAnimId === 'icecube'}
+          <input type="color" id="icecube-color" bind:value={icecubeColorHex} oninput={onchange} />
+          <span class="color-text">{icecubeColorHex.toUpperCase()}</span>
+        {:else}
+          <input type="color" id="breathe-color" bind:value={breatheColorHex} oninput={onchange} />
+          <span class="color-text">{breatheColorHex.toUpperCase()}</span>
+        {/if}
       </div>
     </div>
   {/if}

@@ -8,7 +8,8 @@ export type Mode =
   | { kind: "image"; path: string }
   | { kind: "gif"; path: string }
   | { kind: "text"; text: string; rgb: Rgb; scroll: boolean }
-  | { kind: "anim"; id: string; speed: number; params?: Record<string, any> | null };
+  | { kind: "anim"; id: string; speed: number; params?: Record<string, any> | null }
+  | { kind: "raw" };
 
 export interface Settings {
   mode: Mode;
@@ -44,3 +45,4 @@ export const setStartMinimized = (on: boolean) => invoke<void>("set_start_minimi
 export const listAnimations = () => invoke<AnimInfo[]>("list_animations");
 export const pickFile = (kind: "image" | "gif") => invoke<string | null>("pick_file", { kind });
 export const stopCmService = () => invoke<void>("stop_cm_service");
+export const setRawFrame = (px: Rgb[]) => invoke<void>("set_raw_frame", { px });

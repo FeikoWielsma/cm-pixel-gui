@@ -17,6 +17,8 @@ pub fn setup_tray(app: &AppHandle) {
         ("anim_julia",       "Julia Fractal"),
         ("anim_chroma_life", "Chroma Life"),
         ("anim_rubik",       "Rubik's Cube"),
+        ("anim_icecube",     "Ice Cube"),
+        ("anim_soccer",      "Soccer"),
     ];
     let anim_items: Vec<_> = anims.iter()
         .map(|(id, label)| MenuItemBuilder::with_id(*id, *label).build(app).unwrap())

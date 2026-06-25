@@ -14,12 +14,14 @@
     listAnimations,
     pickFile,
     stopCmService,
+    setRawFrame, // ponytail: import setRawFrame
     type Status,
     type Settings,
     type AnimInfo,
     type Rgb
   } from "./lib/api";
   import HexPreview from "./lib/HexPreview.svelte";
+  import { DOOM } from "wasm-doom"; // ponytail: import DOOM class from wasm-doom
 
   // Child components
   import SolidControl from "./lib/controls/SolidControl.svelte";
@@ -62,6 +64,13 @@
   let rubikPanY: number = $state(0.0);
   let bounceBallSize: number = $state(1.5);
   let juliaZoom: number = $state(1.0);
+  let icecubeAngleX: number = $state(35.26);
+  let icecubeAngleY: number = $state(45.0);
+  let icecubeScale: number = $state(9.0);
+  let icecubePanX: number = $state(0.0);
+  let icecubePanY: number = $state(0.0);
+  let icecubeColorHex: string = $state("#8cddff");
+
 
   // Input states for device settings
   let brightness: number = $state(100);
@@ -73,6 +82,74 @@
 
   // Conflict status helper
   let resolvingConflict: boolean = $state(false);
+
+  // ponytail: DOOM game state & runner
+  let isDoomActive = $state(false);
+  let doomStarted = false;
+  let gameInstance: any = null;
+
+  async function startDoom() {
+    isDoomActive = true;
+    if (doomStarted) {
+      return;
+    }
+    setTimeout(async () => {
+      const canvas = document.getElementById("doom-canvas") as HTMLCanvasElement;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = 32;
+      tempCanvas.height = 32;
+      const tempCtx = tempCanvas.getContext("2d");
+
+      let lastSentTime = 0;
+      doomStarted = true;
+
+      gameInstance = new DOOM({
+        screenWidth: 640,
+        screenHeight: 400,
+        enableLogs: false,
+        onFrameRender: async ({ screen }) => {
+          if (!isDoomActive || selectedModeKind !== "raw") return;
+
+          // Render to browser canvas
+          const frame = new ImageData(screen, 640, 400);
+          ctx.putImageData(frame, 0, 0);
+
+          // Downscale to 32x32 for CM Pixel Screen
+          if (tempCtx) {
+            tempCtx.drawImage(canvas, 0, 0, 32, 32);
+            const imgData = tempCtx.getImageData(0, 0, 32, 32);
+
+            // Throttling: send frame to device at target FPS (e.g. 15 FPS)
+            const now = performance.now();
+            const targetInterval = 1000 / (fps || 15);
+            if (now - lastSentTime >= targetInterval) {
+              lastSentTime = now;
+
+              const px: Rgb[] = [];
+              for (let i = 0; i < 1024; i++) {
+                px.push([
+                  imgData.data[i * 4],
+                  imgData.data[i * 4 + 1],
+                  imgData.data[i * 4 + 2],
+                ]);
+              }
+              try {
+                await setRawFrame(px);
+              } catch (e) {
+                console.error("Failed to send Doom frame to device", e);
+              }
+            }
+          }
+        },
+      });
+
+      await gameInstance.start();
+    }, 100);
+  }
 
   onMount(async () => {
     try {
@@ -135,6 +212,9 @@
       selectedImage = m.path;
     } else if (m.kind === "gif") {
       selectedGif = m.path;
+    } else if (m.kind === "raw") {
+      // ponytail: start Doom on load if raw mode is saved
+      startDoom();
     } else if (m.kind === "anim") {
       selectedAnimId = m.id;
       animSpeed = m.speed;
@@ -163,6 +243,18 @@
         if (typeof m.params.scale === "number") rubikScale = m.params.scale;
         if (typeof m.params.pan_x === "number") rubikPanX = m.params.pan_x;
         if (typeof m.params.pan_y === "number") rubikPanY = m.params.pan_y;
+
+        if (m.id === "icecube") {
+          if (typeof m.params.angle_x === "number") icecubeAngleX = m.params.angle_x;
+          if (typeof m.params.angle_y === "number") icecubeAngleY = m.params.angle_y;
+          if (typeof m.params.scale === "number") icecubeScale = m.params.scale;
+          if (typeof m.params.pan_x === "number") icecubePanX = m.params.pan_x;
+          if (typeof m.params.pan_y === "number") icecubePanY = m.params.pan_y;
+          if (m.params.color && Array.isArray(m.params.color) && m.params.color.length >= 3) {
+            icecubeColorHex = rgbToHex(m.params.color as Rgb);
+          }
+        }
+
       }
     }
   }
@@ -241,6 +333,17 @@
           pan_x: rubikPanX,
           pan_y: rubikPanY,
         };
+      } else if (selectedAnimId === "icecube") {
+        params = {
+          palette: animPalette,
+          angle_x: icecubeAngleX,
+          angle_y: icecubeAngleY,
+          scale: icecubeScale,
+          pan_x: icecubePanX,
+          pan_y: icecubePanY,
+          color: hexToRgb(icecubeColorHex),
+        };
+
       } else if (selectedAnimId === "rainbow") {
         params = {
           angle: animAngle,
@@ -283,11 +386,21 @@
         speed: animSpeed,
         params,
       };
+    } else if (selectedModeKind === "raw") {
+      // ponytail: Doom raw streaming mode
+      modePayload = { kind: "raw" as const };
     } else {
       return;
     }
     await setMode(modePayload);
     settings = await getSettings();
+
+    // ponytail: toggle Doom frame stream
+    if (selectedModeKind === "raw") {
+      startDoom();
+    } else {
+      isDoomActive = false;
+    }
   }
 
   async function handlePickImage() {
@@ -413,6 +526,7 @@
               <option value="image">Static Image</option>
               <option value="gif">GIF Animation</option>
               <option value="anim">Procedural Effect</option>
+              <option value="raw">DOOM Game</option>
             </select>
           </div>
         </div>
@@ -456,10 +570,30 @@
               bind:rubikScale
               bind:rubikPanX
               bind:rubikPanY
+              bind:icecubeAngleX
+              bind:icecubeAngleY
+              bind:icecubeScale
+              bind:icecubePanX
+              bind:icecubePanY
+              bind:icecubeColorHex
               bind:bounceBallSize
               bind:juliaZoom
               onchange={applyMode}
             />
+          {:else if selectedModeKind === "raw"}
+            <!-- ponytail: render Doom play area -->
+            <div class="doom-control">
+              <h3>DOOM (Shareware)</h3>
+              <p class="doom-desc">Play actual DOOM! Keyboard inputs are captured when this window is active. Frames are scaled and sent to the LED screen in real-time.</p>
+              <div class="doom-controls-help">
+                <span><strong>Move:</strong> Arrow Keys</span>
+                <span><strong>Shoot:</strong> Ctrl</span>
+                <span><strong>Use/Open:</strong> Space</span>
+              </div>
+              <div class="canvas-wrapper">
+                <canvas id="doom-canvas" width="640" height="400"></canvas>
+              </div>
+            </div>
           {/if}
         </div>
       {:else}
@@ -743,6 +877,54 @@
   }
   .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ponytail: DOOM layout styles */
+  .doom-control {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .doom-control h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .doom-desc {
+    font-size: 0.9rem;
+    color: #8c8c9a;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .doom-controls-help {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: #e5e5ed;
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 10px 14px;
+    border-radius: 8px;
+  }
+
+  .canvas-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000000;
+    border-radius: 12px;
+    overflow: hidden;
+    aspect-ratio: 8/5;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  #doom-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   @keyframes pulse {

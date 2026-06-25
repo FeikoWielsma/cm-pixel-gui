@@ -16,6 +16,7 @@ pub enum Mode {
     Gif { path: String },
     Text { text: String, rgb: Rgb, scroll: bool },
     Anim { id: String, speed: f32, params: Option<serde_json::Value> },
+    Raw,
 }
 
 impl Default for Mode {
@@ -69,6 +70,7 @@ pub struct Engine {
     pub settings: Settings,
     tx: Option<mpsc::Sender<Settings>>,
     status: Arc<Mutex<Status>>,
+    pub raw_frame: Arc<Mutex<Canvas>>,
 }
 
 impl Engine {
@@ -77,6 +79,7 @@ impl Engine {
             settings: Settings::default(),
             tx: None,
             status: Arc::new(Mutex::new(Status::default())),
+            raw_frame: Arc::new(Mutex::new(Canvas::black())),
         }
     }
 
@@ -89,6 +92,7 @@ impl Engine {
         self.settings = settings.clone();
 
         let status = self.status.clone();
+        let raw_frame = self.raw_frame.clone(); // ponytail: clone raw frame reference for render loop
         {
             let mut st = status.lock().unwrap();
             st.mode = settings.mode.clone();
@@ -224,7 +228,7 @@ impl Engine {
 
                 if rebuild_anim {
                     active_anim = match &current_settings.mode {
-                        Mode::Off | Mode::Solid { .. } => None,
+                        Mode::Off | Mode::Solid { .. } | Mode::Raw => None, // ponytail: no animation rebuild for Raw mode
                         Mode::Image { path } => {
                             match crate::anim::media::StaticImage::new(path) {
                                 Ok(img) => Some(Box::new(img)),
@@ -263,6 +267,10 @@ impl Engine {
                     Mode::Off => {}
                     Mode::Solid { rgb } => {
                         canvas.fill(*rgb);
+                    }
+                    Mode::Raw => {
+                        // ponytail: read raw frame streamed from frontend
+                        canvas = raw_frame.lock().unwrap().clone();
                     }
                     _ => {
                         if let Some(ref mut anim) = active_anim {
