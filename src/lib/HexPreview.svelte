@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, untrack } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import layoutData from "../../reference/layout.json";
 
@@ -35,18 +35,23 @@
 
   $effect(() => {
     if (interactive && path) {
-      zoom = initialParams.zoom;
+      // Use untrack so this effect only triggers when interactive or path changes.
+      // Otherwise, dragging triggers this effect and resets local state repeatedly.
+      const params = untrack(() => initialParams);
+      zoom = params.zoom;
       // We scale the normalized pan offset (-0.5 to 0.5) to a pixel offset based on the SIZE of the canvas
-      panX = initialParams.pan_x * SIZE;
-      panY = initialParams.pan_y * SIZE;
+      panX = params.pan_x * SIZE;
+      panY = params.pan_y * SIZE;
 
-      // Load original image dimensions
-      const img = new window.Image();
-      img.src = convertFileSrc(path);
-      img.onload = () => {
-        imgWidth = img.naturalWidth;
-        imgHeight = img.naturalHeight;
-      };
+      // Load original image dimensions untracked
+      untrack(() => {
+        const img = new window.Image();
+        img.src = convertFileSrc(path);
+        img.onload = () => {
+          imgWidth = img.naturalWidth;
+          imgHeight = img.naturalHeight;
+        };
+      });
     }
   });
 

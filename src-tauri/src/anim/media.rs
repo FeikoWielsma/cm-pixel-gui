@@ -14,7 +14,7 @@ pub struct StaticImage {
 
 impl StaticImage {
     pub fn new(path: &str, zoom: f32, pan_x: f32, pan_y: f32) -> anyhow::Result<Self> {
-        let img = image::open(path)?.to_rgb8();
+        let img = image::open(path)?.thumbnail(512, 512).to_rgb8();
         let mut this = Self {
             img,
             zoom,
@@ -115,7 +115,7 @@ impl GifPlayer {
 
             let rgba_img = frame.into_buffer();
             let dynamic_img = image::DynamicImage::ImageRgba8(rgba_img);
-            let rgb_img = dynamic_img.to_rgb8();
+            let rgb_img = dynamic_img.thumbnail(256, 256).to_rgb8();
 
             frames.push(GifFrame {
                 img: rgb_img,
