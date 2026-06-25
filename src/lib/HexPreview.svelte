@@ -24,6 +24,10 @@
   let panX = $state(0.0);
   let panY = $state(0.0);
 
+  // Real image dimensions for arrow keys 1px adjustments
+  let imgWidth = $state(1000);
+  let imgHeight = $state(1000);
+
   // Sync state when active image path changes
   let initialParams = $derived(
     settings?.image_parameters?.[path] || { zoom: 1.0, pan_x: 0.0, pan_y: 0.0 }
@@ -35,6 +39,14 @@
       // We scale the normalized pan offset (-0.5 to 0.5) to a pixel offset based on the SIZE of the canvas
       panX = initialParams.pan_x * SIZE;
       panY = initialParams.pan_y * SIZE;
+
+      // Load original image dimensions
+      const img = new window.Image();
+      img.src = convertFileSrc(path);
+      img.onload = () => {
+        imgWidth = img.naturalWidth;
+        imgHeight = img.naturalHeight;
+      };
     }
   });
 
@@ -55,6 +67,34 @@
     debounceTimeout = setTimeout(() => {
       onchange?.(zoom, panX / SIZE, panY / SIZE);
     }, 50);
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (!interactive) return;
+
+    let handled = false;
+    const s_base = Math.min(imgWidth, imgHeight) || 1000;
+    // Exactly 1 pixel of the original image mapped to the 320px preview canvas
+    const step = SIZE / s_base;
+
+    if (e.key === "ArrowLeft") {
+      panX = Math.max(-maxPanX, Math.min(maxPanX, panX - step));
+      handled = true;
+    } else if (e.key === "ArrowRight") {
+      panX = Math.max(-maxPanX, Math.min(maxPanX, panX + step));
+      handled = true;
+    } else if (e.key === "ArrowUp") {
+      panY = Math.max(-maxPanY, Math.min(maxPanY, panY - step));
+      handled = true;
+    } else if (e.key === "ArrowDown") {
+      panY = Math.max(-maxPanY, Math.min(maxPanY, panY + step));
+      handled = true;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      debouncedSyncSettings();
+    }
   }
 
   function handlePointerDown(e: PointerEvent) {
@@ -182,14 +222,18 @@
 </script>
 
 <div class="preview-wrapper">
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div 
     class="canvas-container"
     class:interactive={interactive}
+    tabindex={interactive ? 0 : -1}
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
     onpointercancel={handlePointerUp}
     onwheel={handleWheel}
+    onkeydown={handleKeyDown}
     role="application"
     aria-label="Hexagon LED preview panel"
   >
@@ -250,6 +294,15 @@
 
   .canvas-container.interactive:active {
     cursor: grabbing;
+  }
+
+  .canvas-container:focus {
+    outline: none;
+  }
+
+  .canvas-container.interactive:focus-visible {
+    border-color: #007aff;
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
   }
 
   canvas {
