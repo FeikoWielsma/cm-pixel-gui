@@ -28,7 +28,7 @@
 
   // Calculate clamp limits on the frontend based on the 280px size
   let maxPanX = $derived(140 * (zoom - 1));
-  let maxPanY = $derived(160 * (zoom - 1));
+  let maxPanY = $derived(140 * (zoom - 1));
 
   // Pointer state
   let isDragging = false;
@@ -90,7 +90,7 @@
       zoom = newZoom;
       // Adjust pan coordinates to be clamped inside the new zoom bounds
       const limitX = 140 * (zoom - 1);
-      const limitY = 160 * (zoom - 1);
+      const limitY = 140 * (zoom - 1);
       panX = Math.max(-limitX, Math.min(limitX, panX));
       panY = Math.max(-limitY, Math.min(limitY, panY));
       
@@ -104,7 +104,7 @@
     
     // Adjust pan coordinates to new bounds
     const limitX = 140 * (zoom - 1);
-    const limitY = 160 * (zoom - 1);
+    const limitY = 140 * (zoom - 1);
     panX = Math.max(-limitX, Math.min(limitX, panX));
     panY = Math.max(-limitY, Math.min(limitY, panY));
     
@@ -173,7 +173,7 @@
   .zoom-pan-hex-border {
     position: relative;
     width: 284px;
-    height: 324px;
+    height: 284px;
     background: linear-gradient(135deg, #007aff, #00c781);
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
@@ -189,7 +189,7 @@
     top: 2px;
     left: 2px;
     width: 280px;
-    height: 320px;
+    height: 280px;
     clip-path: inherit;
     background-color: #0b0b0e;
     overflow: hidden;
