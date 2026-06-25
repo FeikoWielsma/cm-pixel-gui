@@ -9,7 +9,8 @@ export type Mode =
   | { kind: "gif"; path: string }
   | { kind: "text"; text: string; rgb: Rgb; scroll: boolean }
   | { kind: "anim"; id: string; speed: number; params?: Record<string, any> | null }
-  | { kind: "raw" };
+  | { kind: "raw" }
+  | { kind: "loop"; ids: string[]; interval_secs: number };
 
 export interface Settings {
   mode: Mode;

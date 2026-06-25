@@ -17,6 +17,7 @@ pub enum Mode {
     Text { text: String, rgb: Rgb, scroll: bool },
     Anim { id: String, speed: f32, params: Option<serde_json::Value> },
     Raw,
+    Loop { ids: Vec<String>, interval_secs: f32 },
 }
 
 impl Default for Mode {
@@ -146,6 +147,10 @@ impl Engine {
             let mut conflict = false;
             let mut connection_requested = false;
 
+            let mut loop_index = 0;
+            let mut loop_timer = 0.0;
+            let mut current_loop_id: Option<String> = None;
+
             loop {
                 let loop_start = Instant::now();
 
@@ -215,13 +220,48 @@ impl Engine {
                     dt = 0.2;
                 }
 
-                let rebuild_anim = match (&last_anim_mode, &current_settings.mode) {
+                let mut force_rebuild = false;
+                if let Mode::Loop { ids, interval_secs } = &current_settings.mode {
+                    if !ids.is_empty() {
+                        let interval = *interval_secs;
+                        let mut idx = loop_index;
+                        if idx >= ids.len() {
+                            idx = 0;
+                        }
+                        loop_timer += dt;
+                        if loop_timer >= interval {
+                            loop_timer = 0.0;
+                            idx = (idx + 1) % ids.len();
+                            force_rebuild = true;
+                        }
+                        loop_index = idx;
+                        let target_id = &ids[loop_index];
+                        if current_loop_id.as_ref() != Some(target_id) {
+                            current_loop_id = Some(target_id.clone());
+                            force_rebuild = true;
+                        }
+                    } else {
+                        if current_loop_id.is_some() {
+                            current_loop_id = None;
+                            force_rebuild = true;
+                        }
+                    }
+                } else {
+                    current_loop_id = None;
+                    loop_timer = 0.0;
+                    loop_index = 0;
+                }
+
+                let rebuild_anim = force_rebuild || match (&last_anim_mode, &current_settings.mode) {
                     (Some(Mode::Anim { id: id1, speed: s1, params: p1 }), Mode::Anim { id: id2, speed: s2, params: p2 }) => {
                         id1 != id2 || s1 != s2 || p1 != p2
                     }
                     (Some(Mode::Text { text: t1, rgb: c1, scroll: s1 }), Mode::Text { text: t2, rgb: c2, scroll: s2 }) => t1 != t2 || c1 != c2 || s1 != s2,
                     (Some(Mode::Image { path: p1 }), Mode::Image { path: p2 }) => p1 != p2,
                     (Some(Mode::Gif { path: p1 }), Mode::Gif { path: p2 }) => p1 != p2,
+                    (Some(Mode::Loop { ids: ids1, interval_secs: int1 }), Mode::Loop { ids: ids2, interval_secs: int2 }) => {
+                        ids1 != ids2 || int1 != int2
+                    }
                     (Some(m1), m2) => std::mem::discriminant(m1) != std::mem::discriminant(m2),
                     (None, _) => true,
                 };
@@ -257,6 +297,13 @@ impl Engine {
                         }
                         Mode::Anim { id, speed, params } => {
                             crate::anim::make(id, *speed, params.as_ref())
+                        }
+                        Mode::Loop { .. } => {
+                            if let Some(ref id) = current_loop_id {
+                                crate::anim::make(id, 1.0, None)
+                            } else {
+                                None
+                            }
                         }
                     };
                     last_anim_mode = Some(current_settings.mode.clone());
