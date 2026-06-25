@@ -176,13 +176,13 @@
   /* Hex grid layout styles */
   .hex-grid {
     display: grid;
-    grid-template-columns: repeat(4, 70px);
-    grid-auto-rows: 80px;
+    grid-template-columns: repeat(4, 60px);
+    grid-auto-rows: 70px;
     column-gap: 0;
     row-gap: 0;
     justify-content: center;
     padding-top: 15px;
-    padding-bottom: 55px;
+    padding-bottom: 50px;
     margin: 0 auto;
   }
 
@@ -191,22 +191,22 @@
     flex-direction: column;
     align-items: center;
     position: relative;
-    width: 70px;
-    height: 80px;
+    width: 80px;
+    height: 70px;
   }
 
   /* Shift even columns (Col 1 and Col 3) */
   .hex-wrapper:nth-child(4n + 2),
   .hex-wrapper:nth-child(4n + 4) {
-    transform: translateY(40px);
+    transform: translateY(35px);
   }
 
   .hex-cell {
     position: relative;
-    width: 70px;
-    height: 80px;
+    width: 80px;
+    height: 70px;
     background-color: rgba(255, 255, 255, 0.03);
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     cursor: pointer;
     transition: transform 0.2s, filter 0.2s;
     overflow: hidden;
@@ -218,11 +218,13 @@
 
   .hex-cell:hover {
     transform: scale(1.05);
+    z-index: 10;
   }
 
   .hex-cell.active {
     filter: drop-shadow(0 0 5px #007aff) brightness(1.1);
     transform: scale(1.05);
+    z-index: 10;
   }
 
   .hex-thumb {
