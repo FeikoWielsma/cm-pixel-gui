@@ -23,6 +23,7 @@
     type Rgb
   } from "./lib/api";
   import HexPreview from "./lib/HexPreview.svelte";
+  import ZoomPanPreview from "./lib/ZoomPanPreview.svelte";
   import { DOOM } from "wasm-doom"; // ponytail: import DOOM class from wasm-doom
 
   // Child components
@@ -300,10 +301,24 @@
       };
     } else if (selectedModeKind === "image") {
       if (!selectedImage) return;
-      modePayload = { kind: "image" as const, path: selectedImage };
+      const params = settings?.image_parameters?.[selectedImage] || { zoom: 1.0, pan_x: 0.0, pan_y: 0.0 };
+      modePayload = {
+        kind: "image" as const,
+        path: selectedImage,
+        zoom: params.zoom,
+        pan_x: params.pan_x,
+        pan_y: params.pan_y,
+      };
     } else if (selectedModeKind === "gif") {
       if (!selectedGif) return;
-      modePayload = { kind: "gif" as const, path: selectedGif };
+      const params = settings?.image_parameters?.[selectedGif] || { zoom: 1.0, pan_x: 0.0, pan_y: 0.0 };
+      modePayload = {
+        kind: "gif" as const,
+        path: selectedGif,
+        zoom: params.zoom,
+        pan_x: params.pan_x,
+        pan_y: params.pan_y,
+      };
     } else if (selectedModeKind === "anim") {
       let params: Record<string, any> | null = null;
       if (selectedAnimId === "starfield") {
@@ -446,6 +461,20 @@
     }
   }
 
+  async function handleZoomPanChange(kind: "image" | "gif", path: string, zoom: number, pan_x: number, pan_y: number) {
+    if (!settings) return;
+    if (!settings.image_parameters) {
+      settings.image_parameters = {};
+    }
+    settings.image_parameters[path] = { zoom, pan_x, pan_y };
+
+    const modePayload = kind === "image"
+      ? { kind: "image" as const, path, zoom, pan_x, pan_y }
+      : { kind: "gif" as const, path, zoom, pan_x, pan_y };
+
+    await setMode(modePayload);
+  }
+
   async function handleToggleFavorite(kind: "image" | "gif", path: string) {
     try {
       const updatedSettings = await toggleFavorite(kind, path);
@@ -540,8 +569,24 @@
       </div>
     </div>
 
-    <!-- Hexagon Canvas rendering 556 LEDs -->
-    <HexPreview />
+    <!-- Hexagon Canvas rendering 556 LEDs or Zoom/Pan Preview -->
+    {#if selectedModeKind === "image" && selectedImage}
+      <ZoomPanPreview
+        path={selectedImage}
+        kind="image"
+        {settings}
+        onchange={(z, px, py) => handleZoomPanChange("image", selectedImage, z, px, py)}
+      />
+    {:else if selectedModeKind === "gif" && selectedGif}
+      <ZoomPanPreview
+        path={selectedGif}
+        kind="gif"
+        {settings}
+        onchange={(z, px, py) => handleZoomPanChange("gif", selectedGif, z, px, py)}
+      />
+    {:else}
+      <HexPreview />
+    {/if}
 
     {#if status?.conflict}
       <div class="conflict-alert">

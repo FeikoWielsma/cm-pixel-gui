@@ -12,8 +12,24 @@ use crate::device::PixelDevice;
 pub enum Mode {
     Off,
     Solid { rgb: Rgb },
-    Image { path: String },
-    Gif { path: String },
+    Image {
+        path: String,
+        #[serde(default)]
+        zoom: Option<f32>,
+        #[serde(default)]
+        pan_x: Option<f32>,
+        #[serde(default)]
+        pan_y: Option<f32>,
+    },
+    Gif {
+        path: String,
+        #[serde(default)]
+        zoom: Option<f32>,
+        #[serde(default)]
+        pan_x: Option<f32>,
+        #[serde(default)]
+        pan_y: Option<f32>,
+    },
     Text { text: String, rgb: Rgb, scroll: bool },
     Anim { id: String, speed: f32, params: Option<serde_json::Value> },
     Raw,
@@ -32,6 +48,13 @@ pub struct HistoryItem {
     pub favorite: bool,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct ImageParams {
+    pub zoom: f32,
+    pub pan_x: f32,
+    pub pan_y: f32,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub mode: Mode,
@@ -45,6 +68,8 @@ pub struct Settings {
     pub recent_images: Vec<HistoryItem>,
     #[serde(default)]
     pub recent_gifs: Vec<HistoryItem>,
+    #[serde(default)]
+    pub image_parameters: std::collections::HashMap<String, ImageParams>,
 }
 
 impl Default for Settings {
@@ -59,6 +84,7 @@ impl Default for Settings {
             start_minimized: false,
             recent_images: Vec::new(),
             recent_gifs: Vec::new(),
+            image_parameters: std::collections::HashMap::new(),
         }
     }
 }
@@ -293,8 +319,8 @@ impl Engine {
                         id1 != id2 || s1 != s2 || p1 != p2
                     }
                     (Some(Mode::Text { text: t1, rgb: c1, scroll: s1 }), Mode::Text { text: t2, rgb: c2, scroll: s2 }) => t1 != t2 || c1 != c2 || s1 != s2,
-                    (Some(Mode::Image { path: p1 }), Mode::Image { path: p2 }) => p1 != p2,
-                    (Some(Mode::Gif { path: p1 }), Mode::Gif { path: p2 }) => p1 != p2,
+                    (Some(Mode::Image { path: p1, .. }), Mode::Image { path: p2, .. }) => p1 != p2,
+                    (Some(Mode::Gif { path: p1, .. }), Mode::Gif { path: p2, .. }) => p1 != p2,
                     (Some(Mode::Loop { ids: ids1, interval_secs: int1 }), Mode::Loop { ids: ids2, interval_secs: int2 }) => {
                         ids1 != ids2 || int1 != int2
                     }
@@ -305,8 +331,11 @@ impl Engine {
                 if rebuild_anim {
                     active_anim = match &current_settings.mode {
                         Mode::Off | Mode::Solid { .. } | Mode::Raw => None, // ponytail: no animation rebuild for Raw mode
-                        Mode::Image { path } => {
-                            match crate::anim::media::StaticImage::new(path) {
+                        Mode::Image { path, zoom, pan_x, pan_y } => {
+                            let z = zoom.unwrap_or(1.0);
+                            let px = pan_x.unwrap_or(0.0);
+                            let py = pan_y.unwrap_or(0.0);
+                            match crate::anim::media::StaticImage::new(path, z, px, py) {
                                 Ok(img) => Some(Box::new(img)),
                                 Err(e) => {
                                     eprintln!("Error loading image: {}", e);
@@ -314,8 +343,11 @@ impl Engine {
                                 }
                             }
                         }
-                        Mode::Gif { path } => {
-                            match crate::anim::media::GifPlayer::new(path, 1.0) {
+                        Mode::Gif { path, zoom, pan_x, pan_y } => {
+                            let z = zoom.unwrap_or(1.0);
+                            let px = pan_x.unwrap_or(0.0);
+                            let py = pan_y.unwrap_or(0.0);
+                            match crate::anim::media::GifPlayer::new(path, 1.0, z, px, py) {
                                 Ok(player) => Some(Box::new(player)),
                                 Err(e) => {
                                     eprintln!("Error loading gif: {}", e);
@@ -342,6 +374,20 @@ impl Engine {
                             }
                         }
                     };
+                    last_anim_mode = Some(current_settings.mode.clone());
+                } else {
+                    // Update active anim zoom/pan parameters without reloading from disk
+                    if let Some(ref mut anim) = active_anim {
+                        match &current_settings.mode {
+                            Mode::Image { zoom, pan_x, pan_y, .. } | Mode::Gif { zoom, pan_x, pan_y, .. } => {
+                                let z = zoom.unwrap_or(1.0);
+                                let px = pan_x.unwrap_or(0.0);
+                                let py = pan_y.unwrap_or(0.0);
+                                anim.update_params(z, px, py);
+                            }
+                            _ => {}
+                        }
+                    }
                     last_anim_mode = Some(current_settings.mode.clone());
                 }
 
@@ -397,14 +443,20 @@ impl Engine {
 
     pub fn set_mode(&mut self, app: &AppHandle, mode: Mode) {
         match &mode {
-            Mode::Image { path } => {
+            Mode::Image { path, zoom, pan_x, pan_y } => {
                 if !path.is_empty() {
                     add_to_history(&mut self.settings.recent_images, path.clone());
+                    if let (Some(z), Some(px), Some(py)) = (zoom, pan_x, pan_y) {
+                        self.settings.image_parameters.insert(path.clone(), ImageParams { zoom: *z, pan_x: *px, pan_y: *py });
+                    }
                 }
             }
-            Mode::Gif { path } => {
+            Mode::Gif { path, zoom, pan_x, pan_y } => {
                 if !path.is_empty() {
                     add_to_history(&mut self.settings.recent_gifs, path.clone());
+                    if let (Some(z), Some(px), Some(py)) = (zoom, pan_x, pan_y) {
+                        self.settings.image_parameters.insert(path.clone(), ImageParams { zoom: *z, pan_x: *px, pan_y: *py });
+                    }
                 }
             }
             _ => {}

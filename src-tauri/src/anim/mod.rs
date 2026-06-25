@@ -11,6 +11,9 @@ use crate::canvas::Canvas;
 pub trait Animation: Send {
     /// Render the next frame. `t` = seconds since app start, `dt` = seconds since last call.
     fn render(&mut self, t: f32, dt: f32) -> Canvas;
+
+    /// Update zoom and pan parameters (default does nothing)
+    fn update_params(&mut self, _zoom: f32, _pan_x: f32, _pan_y: f32) {}
 }
 
 #[derive(Clone, serde::Serialize)]

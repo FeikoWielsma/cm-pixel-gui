@@ -5,8 +5,8 @@ export type Rgb = [number, number, number];
 export type Mode =
   | { kind: "off" }
   | { kind: "solid"; rgb: Rgb }
-  | { kind: "image"; path: string }
-  | { kind: "gif"; path: string }
+  | { kind: "image"; path: string; zoom?: number; pan_x?: number; pan_y?: number }
+  | { kind: "gif"; path: string; zoom?: number; pan_x?: number; pan_y?: number }
   | { kind: "text"; text: string; rgb: Rgb; scroll: boolean }
   | { kind: "anim"; id: string; speed: number; params?: Record<string, any> | null }
   | { kind: "raw" }
@@ -27,6 +27,7 @@ export interface Settings {
   start_minimized: boolean;
   recent_images: HistoryItem[];
   recent_gifs: HistoryItem[];
+  image_parameters?: Record<string, { zoom: number; pan_x: number; pan_y: number }>;
 }
 
 export interface Status {
