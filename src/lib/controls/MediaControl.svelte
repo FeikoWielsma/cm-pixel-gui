@@ -176,13 +176,13 @@
   /* Hex grid layout styles */
   .hex-grid {
     display: grid;
-    grid-template-columns: repeat(4, 54px);
-    grid-auto-rows: 60px;
+    grid-template-columns: repeat(4, 70px);
+    grid-auto-rows: 80px;
     column-gap: 0;
     row-gap: 0;
     justify-content: center;
     padding-top: 15px;
-    padding-bottom: 45px;
+    padding-bottom: 55px;
     margin: 0 auto;
   }
 
@@ -192,12 +192,13 @@
     align-items: center;
     position: relative;
     width: 70px;
+    height: 80px;
   }
 
   /* Shift even columns (Col 1 and Col 3) */
   .hex-wrapper:nth-child(4n + 2),
   .hex-wrapper:nth-child(4n + 4) {
-    transform: translateY(30px);
+    transform: translateY(40px);
   }
 
   .hex-cell {
