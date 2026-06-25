@@ -35,6 +35,7 @@ export interface Status {
   running: boolean;
   mode: Mode;
   conflict: boolean;
+  loaded_path?: string | null;
 }
 
 export interface AnimInfo {

@@ -8,11 +8,13 @@
     interactive = false, 
     path = "", 
     settings = null, 
+    status = null,
     onchange 
   } = $props<{
     interactive?: boolean;
     path?: string;
     settings?: any;
+    status?: any;
     onchange?: (zoom: number, panX: number, panY: number) => void;
   }>();
 
@@ -30,7 +32,11 @@
   let imgHeight = $state(1000);
 
   // Loading state when files are importing/converting
-  let isLoading = $state(false);
+  let frontendLoaded = $state(false);
+  let backendLoaded = $derived(status?.loaded_path === path);
+  let isLoading = $derived(
+    interactive && path ? (!frontendLoaded || !backendLoaded) : false
+  );
 
   // Sync state when active image path changes
   let initialParams = $derived(
@@ -39,7 +45,7 @@
 
   $effect(() => {
     if (interactive && path) {
-      isLoading = true;
+      frontendLoaded = false;
       // Use untrack so this effect only triggers when interactive or path changes.
       // Otherwise, dragging triggers this effect and resets local state repeatedly.
       const params = untrack(() => initialParams);
@@ -55,12 +61,14 @@
         img.onload = () => {
           imgWidth = img.naturalWidth;
           imgHeight = img.naturalHeight;
-          isLoading = false;
+          frontendLoaded = true;
         };
         img.onerror = () => {
-          isLoading = false;
+          frontendLoaded = true;
         };
       });
+    } else {
+      frontendLoaded = false;
     }
   });
 

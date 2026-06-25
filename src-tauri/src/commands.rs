@@ -145,3 +145,44 @@ pub fn delete_history(app: AppHandle, engine: EngineState<'_>, kind: String, pat
     eng.trigger_update(&app);
     eng.settings.clone()
 }
+
+#[tauri::command]
+pub fn get_anim_previews_data() -> std::collections::HashMap<String, Vec<[[[u8; 3]; 32]; 32]>> {
+    let mut previews = std::collections::HashMap::new();
+    let fps = 15.0;
+    let dt = 1.0 / fps;
+
+    for anim_info in crate::anim::list() {
+        let id = anim_info.id;
+        let mut anim = crate::anim::make(id, 1.0, None).unwrap_or_else(|| {
+            Box::new(crate::anim::procedural::Rainbow::new(1.0, 0.0, "rainbow".to_string()))
+        });
+
+        // Vary frame counts based on the animation's nature to prevent synchronized resets
+        let frame_count = match id {
+            "plasma" | "julia" | "aurora" | "icecube" | "rubik" | "fireworks" | "starfield" | "breathe" => 90, // 6s loops
+            "ripple" | "metaballs" | "matrix" | "pinwheel" | "torus" => 75, // 5s loops
+            "rainbow" | "swirl" | "tunnel" | "comet" | "interference" | "chroma_life" | "soccer" => 60, // 4s loops
+            _ => 45, // 3s loops (sparkle, fire, bounce, twinkle)
+        };
+
+        // Pre-warm animations that need time to build up (like fire and matrix)
+        let pre_warm_frames = match id {
+            "fire" | "matrix" => 60, // 4 seconds at 15 FPS
+            _ => 0,
+        };
+        for _ in 0..pre_warm_frames {
+            let _ = anim.render(0.0, dt);
+        }
+
+        let mut frames = Vec::with_capacity(frame_count);
+        for f in 0..frame_count {
+            let t = f as f32 * dt;
+            let canvas = anim.render(t, dt);
+            frames.push(canvas.px);
+        }
+        previews.insert(id.to_string(), frames);
+    }
+
+    previews
+}

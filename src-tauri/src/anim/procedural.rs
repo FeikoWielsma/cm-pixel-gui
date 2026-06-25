@@ -111,10 +111,70 @@ pub fn evaluate_palette(name: &str, t: f32) -> [u8; 3] {
         }
         "cyberpunk" => {
             let colors = &[
-                [255, 0, 127],
-                [128, 0, 255],
-                [0, 255, 255],
-                [255, 255, 0],
+                [255, 220, 0],  // neon yellow
+                [255, 180, 0],  // amber/gold
+                [0, 200, 255],  // ice blue
+                [0, 255, 240],  // cyan
+                [255, 240, 100], // pale yellow
+            ];
+            sample_palette_cyclic(colors, t)
+        }
+        "toxic" => {
+            let colors = &[
+                [0, 40, 0],
+                [0, 120, 20],
+                [0, 220, 50],
+                [100, 255, 80],
+                [200, 255, 180],
+            ];
+            sample_palette_cyclic(colors, t)
+        }
+        "ice" => {
+            let colors = &[
+                [0, 30, 100],
+                [0, 100, 200],
+                [0, 200, 255],
+                [100, 255, 255],
+                [200, 255, 255],
+            ];
+            sample_palette_cyclic(colors, t)
+        }
+        "ice_fire" => {
+            let colors = &[
+                [0, 30, 120],
+                [0, 100, 255],
+                [150, 0, 150],
+                [255, 50, 0],
+                [255, 210, 100],
+            ];
+            sample_palette_cyclic(colors, t)
+        }
+        "magma" => {
+            let colors = &[
+                [50, 0, 0],
+                [180, 20, 0],
+                [255, 100, 0],
+                [255, 210, 0],
+                [255, 255, 180],
+            ];
+            sample_palette_cyclic(colors, t)
+        }
+        "synthwave" => {
+            let colors = &[
+                [43, 0, 128],
+                [255, 0, 128],
+                [0, 242, 254],
+                [255, 224, 0],
+            ];
+            sample_palette_cyclic(colors, t)
+        }
+        "forest" => {
+            let colors = &[
+                [20, 50, 20],
+                [40, 100, 50],
+                [100, 160, 80],
+                [200, 210, 120],
+                [230, 240, 190],
             ];
             sample_palette_cyclic(colors, t)
         }
@@ -398,20 +458,64 @@ impl Animation for Sparkle {
 pub struct Fire {
     speed: f32,
     intensity: f32,
-    heat: [[f32; 32]; 34],
+    heat: [[f32; 32]; 32],
     palette: [[u8; 3]; 256],
     accumulator: f32,
 }
 
 impl Fire {
-    pub fn new(speed: f32, intensity: f32) -> Self {
-        let stops = [
-            [0.0, 0.0, 0.0],
-            [80.0, 0.0, 0.0],
-            [220.0, 50.0, 0.0],
-            [255.0, 160.0, 0.0],
-            [255.0, 255.0, 120.0],
-        ];
+    pub fn new(speed: f32, intensity: f32, palette_name: String) -> Self {
+        let stops = match palette_name.as_str() {
+            "ice" | "nord" => [
+                [0.0, 0.0, 0.0],
+                [0.0, 50.0, 150.0],
+                [0.0, 140.0, 255.0],
+                [0.0, 255.0, 255.0],
+                [180.0, 255.0, 255.0],
+            ],
+            "ice_fire" | "synthwave" => [
+                [0.0, 0.0, 0.0],
+                [0.0, 60.0, 180.0],
+                [110.0, 0.0, 160.0],
+                [255.0, 50.0, 0.0],
+                [255.0, 210.0, 100.0],
+            ],
+            "cyberpunk" => [
+                [0.0, 0.0, 0.0],
+                [180.0, 140.0, 0.0],
+                [255.0, 220.0, 0.0],
+                [0.0, 180.0, 255.0],
+                [180.0, 255.0, 255.0],
+            ],
+            "toxic" | "green" | "everforest" | "forest" => [
+                [0.0, 0.0, 0.0],
+                [0.0, 100.0, 0.0],
+                [0.0, 220.0, 50.0],
+                [120.0, 255.0, 100.0],
+                [200.0, 255.0, 180.0],
+            ],
+            "dracula" | "purple" => [
+                [0.0, 0.0, 0.0],
+                [60.0, 0.0, 120.0],
+                [160.0, 0.0, 220.0],
+                [255.0, 80.0, 180.0],
+                [255.0, 220.0, 255.0],
+            ],
+            "sunset" | "catppuccin" => [
+                [0.0, 0.0, 0.0],
+                [100.0, 0.0, 80.0],
+                [200.0, 30.0, 0.0],
+                [255.0, 150.0, 0.0],
+                [255.0, 230.0, 150.0],
+            ],
+            _ => [ // "classic", "magma", "rainbow", default
+                [0.0, 0.0, 0.0],
+                [120.0, 0.0, 0.0],
+                [255.0, 80.0, 0.0],
+                [255.0, 190.0, 0.0],
+                [255.0, 255.0, 180.0],
+            ],
+        };
         let mut palette = [[0u8; 3]; 256];
         for i in 0..256 {
             let t = (i as f32 / 255.0) * 4.0;
@@ -428,7 +532,7 @@ impl Fire {
         Self {
             speed,
             intensity,
-            heat: [[0.0; 32]; 34],
+            heat: [[0.0; 32]; 32],
             palette,
             accumulator: 0.0,
         }
@@ -444,28 +548,37 @@ impl Animation for Fire {
         use rand::Rng;
 
         while self.accumulator >= 1.0 && steps < limit {
-            // Spark row at bottom (row 33)
-            for x in 0..32 {
-                self.heat[33][x] = (rng.gen::<f32>() * 255.0 * self.intensity).clamp(0.0, 255.0);
-            }
+            let mut next_heat = [[0.0f32; 32]; 32];
 
-            // Calculate rolled/smoothed heat
-            let mut next_heat = [[0.0f32; 32]; 34];
-            for y in 0..34 {
-                let y_up = (y + 1) % 34;
+            // Smooth rows 0–30 upward from the row below (no wrap)
+            for y in 0..31 {
+                let y_up = y + 1;
                 for x in 0..32 {
                     let x_left = (x + 31) % 32;
                     let x_right = (x + 1) % 32;
 
-                    let val = self.heat[y_up][x] * 0.42
+                    let mut val = self.heat[y_up][x] * 0.42
                         + self.heat[y][x] * 0.30
                         + self.heat[y_up][x_left] * 0.14
                         + self.heat[y_up][x_right] * 0.14;
-                    next_heat[y][x] = val.clamp(0.0, 255.0);
+
+                    // Decay: low at bottom (y≈30), high at top (y≈0)
+                    let y_factor = y as f32 / 30.0;
+                    let decay = rng.gen_range(1.5..3.8) + (1.0 - y_factor) * 4.8;
+                    val = (val - decay).max(0.0);
+
+                    next_heat[y][x] = val;
                 }
             }
-            self.heat = next_heat;
 
+            // Seed the bottom row with fresh sparks after smoothing so they are never smoothed away
+            for x in 0..32 {
+                let r: f32 = rng.gen();
+                let bias = r.powf(0.35);
+                next_heat[31][x] = (bias * 255.0 * self.intensity).clamp(0.0, 255.0);
+            }
+
+            self.heat = next_heat;
             self.accumulator -= 1.0;
             steps += 1;
         }

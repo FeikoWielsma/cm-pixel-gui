@@ -44,6 +44,7 @@ fn main() {
             commands::set_raw_frame,
             commands::toggle_favorite,
             commands::delete_history,
+            commands::get_anim_previews_data,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

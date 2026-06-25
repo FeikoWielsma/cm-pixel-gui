@@ -147,7 +147,7 @@ pub fn make(id: &str, speed: f32, params: Option<&serde_json::Value>) -> Option<
         "ripple" => Some(Box::new(procedural::Ripple::new(speed, palette))),
         "breathe" => Some(Box::new(procedural::Breathe::new(speed, palette, fixed_color))),
         "sparkle" => Some(Box::new(procedural::Sparkle::new(speed, [255, 255, 255], 0.85, 6))),
-        "fire" => Some(Box::new(procedural::Fire::new(speed, intensity))),
+        "fire" => Some(Box::new(procedural::Fire::new(speed, intensity, palette))),
         "starfield" => {
             let mut density = 0.04;
             let mut trail_len = 1.5;

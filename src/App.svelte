@@ -376,6 +376,7 @@
       } else if (selectedAnimId === "fire") {
         params = {
           intensity: fireIntensity,
+          palette: animPalette,
         };
       } else if (selectedAnimId === "metaballs") {
         params = {
@@ -433,16 +434,6 @@
     }
   }
 
-  function toggleLoopEffect(id: string, checked: boolean) {
-    if (checked) {
-      if (!loopEffectIds.includes(id)) {
-        loopEffectIds = [...loopEffectIds, id];
-      }
-    } else {
-      loopEffectIds = loopEffectIds.filter((x) => x !== id);
-    }
-    applyMode();
-  }
 
   async function handlePickImage() {
     const path = await pickFile("image");
@@ -574,6 +565,7 @@
         interactive={true}
         path={selectedImage}
         {settings}
+        {status}
         onchange={(z, px, py) => handleZoomPanChange("image", selectedImage, z, px, py)}
       />
     {:else if selectedModeKind === "gif" && selectedGif}
@@ -581,10 +573,11 @@
         interactive={true}
         path={selectedGif}
         {settings}
+        {status}
         onchange={(z, px, py) => handleZoomPanChange("gif", selectedGif, z, px, py)}
       />
     {:else}
-      <HexPreview />
+      <HexPreview {status} />
     {/if}
 
     {#if status?.conflict}
@@ -706,8 +699,8 @@
             <!-- Loop Mode UI -->
             <div class="loop-control">
               <h3>Animation Loop</h3>
-              <p class="loop-desc">Cycle through your selected procedural effects automatically.</p>
-              
+              <p class="loop-desc">Cycle through selected effects automatically.</p>
+
               <div class="form-group mt-4">
                 <div class="slider-header">
                   <label class="control-label" for="loop-interval">Interval (seconds)</label>
@@ -724,21 +717,14 @@
                 />
               </div>
 
-              <div class="effects-grid mt-4">
-                <span class="control-label">Select Effects to Include:</span>
-                <div class="checkbox-list">
-                  {#each animations as anim}
-                    <label class="checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={loopEffectIds.includes(anim.id)}
-                        onchange={(e) => toggleLoopEffect(anim.id, (e.target as HTMLInputElement).checked)}
-                      />
-                      <span class="checkbox-label">{anim.label}</span>
-                    </label>
-                  {/each}
-                </div>
-              </div>
+              <AnimControl
+                {animations}
+                bind:selectedAnimId
+                bind:animSpeed
+                toggleMode={true}
+                bind:loopIds={loopEffectIds}
+                onchange={applyMode}
+              />
             </div>
           {:else if selectedModeKind === "raw"}
             <!-- ponytail: render Doom play area -->
@@ -1107,56 +1093,6 @@
     margin: 0;
   }
 
-  .effects-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .checkbox-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
-    max-height: 250px;
-    overflow-y: auto;
-    background-color: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 12px;
-    border-radius: 10px;
-  }
-
-  .checkbox-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
-    color: #e5e5ed;
-    cursor: pointer;
-    user-select: none;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background-color: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    transition: background-color 0.2s, border-color 0.2s;
-  }
-
-  .checkbox-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-
-  .checkbox-item input[type="checkbox"] {
-    accent-color: #007aff;
-    cursor: pointer;
-    width: 14px;
-    height: 14px;
-  }
-
-  .checkbox-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   @keyframes pulse {
     0%,

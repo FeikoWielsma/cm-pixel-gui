@@ -1,10 +1,19 @@
+<script lang="ts" module>
+  let cachedPreviews: Record<string, number[][][][]> | null = null;
+</script>
+
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
   import type { AnimInfo } from "../api";
+  import layoutData from "../../../reference/layout.json";
 
   let {
     animations,
     selectedAnimId = $bindable(),
     animSpeed = $bindable(),
+    toggleMode = false,
+    loopIds = $bindable([]),
     starfieldDensity = $bindable(0.04),
     starfieldTrailLen = $bindable(1.5),
     animPalette = $bindable("rainbow"),
@@ -34,6 +43,8 @@
     animations: AnimInfo[];
     selectedAnimId: string;
     animSpeed: number;
+    toggleMode?: boolean;
+    loopIds?: string[];
     starfieldDensity?: number;
     starfieldTrailLen?: number;
     animPalette?: string;
@@ -64,19 +75,25 @@
   const palettes = [
     { id: "fixed", label: "Fixed Color", gradient: "linear-gradient(135deg, #007aff, #00c781)" },
     { id: "rainbow", label: "Rainbow", gradient: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff)" },
+    { id: "magma", label: "Magma/Fire", gradient: "linear-gradient(90deg, #320000, #b41400, #ff6400, #ffd200, #ffffb4)" },
+    { id: "ice", label: "Ice Blue", gradient: "linear-gradient(90deg, #001e64, #0064c8, #00c8ff, #64ffff, #c8ffff)" },
+    { id: "ice_fire", label: "Ice & Fire", gradient: "linear-gradient(90deg, #001e78, #0064ff, #960096, #ff3200, #ffd264)" },
+    { id: "toxic", label: "Toxic Green", gradient: "linear-gradient(90deg, #002800, #007814, #00dc32, #64ff50, #c8ffb4)" },
+    { id: "synthwave", label: "Synthwave", gradient: "linear-gradient(90deg, #2b0080, #ff0080, #00f2fe, #ffe000)" },
+    { id: "forest", label: "Forest", gradient: "linear-gradient(90deg, #143214, #286432, #64a050, #c8d278, #e6f0be)" },
     { id: "catppuccin", label: "Catppuccin", gradient: "linear-gradient(90deg, #c6a0f6, #8aadf4, #8bd5ca, #eed49f, #f5a97f, #ed8796)" },
     { id: "everforest", label: "Everforest", gradient: "linear-gradient(90deg, #a7c080, #dbbc7f, #e67e80, #7fbbb3, #d3c6aa)" },
     { id: "nord", label: "Nord", gradient: "linear-gradient(90deg, #8fbcbb, #88c0d0, #81a1c1, #5e81ac, #bf616a, #d8dee9)" },
     { id: "dracula", label: "Dracula", gradient: "linear-gradient(90deg, #bd93f9, #ff79c6, #8be9fd, #50fa7b, #ffb86c, #ff5555)" },
     { id: "sunset", label: "Sunset", gradient: "linear-gradient(90deg, #7209b7, #b5179e, #f72585, #fc4c02, #ffba08)" },
-    { id: "cyberpunk", label: "Cyberpunk", gradient: "linear-gradient(90deg, #ff007f, #8000ff, #00ffff, #ffff00)" },
+    { id: "cyberpunk", label: "Cyberpunk", gradient: "linear-gradient(90deg, #ffdc00, #ffb400, #00c8ff, #00fff0, #fff064)" },
   ];
 
   let showPalettePicker = $derived([
     "plasma", "rainbow", "swirl", "ripple", "tunnel",
     "metaballs", "fireworks", "pinwheel", "interference",
     "bounce", "twinkle", "rubik", "breathe",
-    "torus", "julia", "chroma_life", "icecube"
+    "torus", "julia", "chroma_life", "icecube", "fire"
   ].includes(selectedAnimId));
 
   const getThumbnailStyle = (id: string) => {
@@ -133,40 +150,151 @@
         return "background: linear-gradient(135deg, #007aff, #00c781)";
     }
   };
+
+  let containerWidth = $state(245);
+  let columns = $derived(Math.max(3, Math.floor((containerWidth - 24 - 35) / 70)));
+
+  let canvases: Record<string, HTMLCanvasElement> = {};
+  let animationFrameId: number;
+  let currentFrameIndex = 0;
+
+  async function loadPreviewsAndPlay() {
+    if (!cachedPreviews) {
+      try {
+        cachedPreviews = await invoke<Record<string, number[][][][]>>("get_anim_previews_data");
+      } catch (e) {
+        console.error("Failed to fetch anim previews data:", e);
+        return;
+      }
+    }
+
+    let lastTime = performance.now();
+    const frameInterval = 1000 / 15; // 15 FPS
+
+    function loop(time: number) {
+      const elapsed = time - lastTime;
+      if (elapsed >= frameInterval) {
+        lastTime = time - (elapsed % frameInterval);
+
+        currentFrameIndex = (currentFrameIndex + 1) % 9000;
+
+        if (cachedPreviews) {
+          for (const [id, frames] of Object.entries(cachedPreviews)) {
+            const canvas = canvases[id];
+            const frame = frames[currentFrameIndex % frames.length];
+            if (canvas && frame) {
+              drawMiniPreview(canvas, frame);
+            }
+          }
+        }
+      }
+      animationFrameId = requestAnimationFrame(loop);
+    }
+
+    animationFrameId = requestAnimationFrame(loop);
+  }
+
+  function drawMiniPreview(canvas: HTMLCanvasElement, px: number[][][]) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const size = canvas.width; // 132
+    ctx.clearRect(0, 0, size, size);
+
+    const cellSize = size / 32;
+    const radius = cellSize * 0.35;
+
+    for (let y = 0; y < 32; y++) {
+      for (let x = 0; x < 32; x++) {
+        const lamp = layoutData[y * 32 + x];
+        if (lamp > 0) {
+          const cx = x * cellSize + cellSize / 2;
+          const cy = y * cellSize + cellSize / 2;
+          const rgb = px[y]?.[x] || [0, 0, 0];
+          const isOff = rgb[0] === 0 && rgb[1] === 0 && rgb[2] === 0;
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+          
+          if (isOff) {
+            ctx.fillStyle = "rgba(45, 45, 55, 0.4)";
+          } else {
+            ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+          }
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  onMount(() => {
+    loadPreviewsAndPlay();
+  });
+
+  onDestroy(() => {
+    cancelAnimationFrame(animationFrameId);
+  });
 </script>
 
 <div class="form-group">
-  <span class="control-label">Animation Effect</span>
-  <div class="effect-grid">
-    {#each animations as anim}
-      <button
-        type="button"
-        class="effect-btn"
-        class:active={selectedAnimId === anim.id}
-        onclick={() => { selectedAnimId = anim.id; onchange(); }}
-      >
-        <div class="effect-preview" style={getThumbnailStyle(anim.id)}>
-          {#if anim.id === 'rubik'}
-            <div class="rubik-grid">
-              <div style="background: #ff3b30"></div>
-              <div style="background: #4cd964"></div>
-              <div style="background: #007aff"></div>
-              <div style="background: #ffcc00"></div>
-              <div style="background: #ff3b30"></div>
-              <div style="background: #ffcc00"></div>
-              <div style="background: #4cd964"></div>
-              <div style="background: #007aff"></div>
-              <div style="background: #ff3b30"></div>
+  <span class="control-label">{toggleMode ? "Select Effects to Include" : "Animation Effect"}</span>
+  <div class="effect-list-wrapper" bind:clientWidth={containerWidth}>
+    <div class="hex-grid" style="grid-template-columns: repeat({columns}, 70px); width: {columns * 70 + 35}px;">
+      {#each animations as anim, i (anim.id)}
+        {@const row = Math.floor(i / columns)}
+        {@const isShifted = row % 2 === 1}
+        {@const isActive = toggleMode ? loopIds.includes(anim.id) : selectedAnimId === anim.id}
+        <div class="hex-wrapper" class:shifted={isShifted}>
+          <div
+            role="button"
+            tabindex="0"
+            class="hex-cell"
+            class:active={isActive}
+            class:toggle-mode={toggleMode}
+            onclick={() => {
+              if (toggleMode) {
+                loopIds = loopIds.includes(anim.id)
+                  ? loopIds.filter(id => id !== anim.id)
+                  : [...loopIds, anim.id];
+              } else {
+                selectedAnimId = anim.id;
+              }
+              onchange();
+            }}
+            onkeydown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                if (toggleMode) {
+                  loopIds = loopIds.includes(anim.id)
+                    ? loopIds.filter(id => id !== anim.id)
+                    : [...loopIds, anim.id];
+                } else {
+                  selectedAnimId = anim.id;
+                }
+                onchange();
+              }
+            }}
+            title={anim.label}
+          >
+            <div class="hex-inner">
+              <div class="effect-preview">
+                <canvas
+                  bind:this={canvases[anim.id]}
+                  width={132}
+                  height={132}
+                  class="hex-canvas"
+                ></canvas>
+              </div>
+              {#if toggleMode && isActive}
+                <div class="hex-check">✓</div>
+              {/if}
+              <div class="hex-label">
+                <span class="hex-label-text">{anim.label}</span>
+              </div>
             </div>
-          {:else if anim.id === 'matrix'}
-            <div class="matrix-preview-text">1 0 1 1 0</div>
-          {:else if anim.id === 'breathe'}
-            <div class="pulse-circle"></div>
-          {/if}
+          </div>
         </div>
-        <span class="effect-label">{anim.label}</span>
-      </button>
-    {/each}
+      {/each}
+    </div>
   </div>
 </div>
 
@@ -552,12 +680,13 @@
       {#each palettes as pal}
         <button
           type="button"
-          class="palette-btn"
+          class="palette-compact-btn"
           class:active={animPalette === pal.id}
           onclick={() => { animPalette = pal.id; onchange(); }}
+          title={pal.label}
         >
-          <div class="palette-preview" style="background: {pal.gradient}"></div>
-          <span class="palette-label">{pal.label}</span>
+          <div class="palette-swatch" style="background: {pal.gradient}"></div>
+          <span class="palette-compact-label">{pal.label}</span>
         </button>
       {/each}
     </div>
@@ -650,43 +779,47 @@
   .palette-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 6px;
     margin-top: 8px;
   }
-  .palette-btn {
+  .palette-compact-btn {
     background-color: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 6px 8px;
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    align-items: center;
+    gap: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     text-align: left;
+    overflow: hidden;
   }
-  .palette-btn:hover {
+  .palette-compact-btn:hover {
     background-color: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.12);
   }
-  .palette-btn.active {
+  .palette-compact-btn.active {
     background-color: rgba(0, 122, 255, 0.08);
     border-color: #007aff;
-    box-shadow: 0 0 12px rgba(0, 122, 255, 0.2);
+    box-shadow: 0 0 8px rgba(0, 122, 255, 0.2);
   }
-  .palette-preview {
+  .palette-swatch {
+    width: 24px;
     height: 12px;
-    border-radius: 6px;
-    margin-bottom: 6px;
-    width: 100%;
+    border-radius: 4px;
+    flex-shrink: 0;
   }
-  .palette-label {
-    font-size: 0.8rem;
+  .palette-compact-label {
+    font-size: 0.75rem;
     font-weight: 600;
     color: #8c8c9a;
-    transition: color 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s ease;
   }
-  .palette-btn.active .palette-label {
+  .palette-compact-btn.active .palette-compact-label {
     color: #ffffff;
   }
   .color-picker-row {
@@ -718,102 +851,163 @@
     color: #e5e5ed;
   }
 
-  .effect-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 12px;
-    margin-top: 8px;
+  .effect-list-wrapper {
     max-height: 280px;
     overflow-y: auto;
+    width: 100%;
     padding-right: 4px;
   }
-  .effect-grid::-webkit-scrollbar {
+  .effect-list-wrapper::-webkit-scrollbar {
     width: 6px;
   }
-  .effect-grid::-webkit-scrollbar-track {
+  .effect-list-wrapper::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.01);
     border-radius: 3px;
   }
-  .effect-grid::-webkit-scrollbar-thumb {
+  .effect-list-wrapper::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
   }
-  .effect-grid::-webkit-scrollbar-thumb:hover {
+  .effect-list-wrapper::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
   }
-  .effect-btn {
-    background-color: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
-    padding: 8px;
+
+  /* Hex grid layout styles */
+  .hex-grid {
+    display: grid;
+    grid-auto-rows: 60px;
+    column-gap: 0;
+    row-gap: 0;
+    justify-content: center;
+    padding-top: 15px;
+    padding-bottom: 35px;
+    margin: 0 auto;
+  }
+
+  .hex-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: center;
-  }
-  .effect-btn:hover {
-    background-color: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.12);
-    transform: translateY(-2px);
-  }
-  .effect-btn.active {
-    background-color: rgba(0, 122, 255, 0.08);
-    border-color: #007aff;
-    box-shadow: 0 0 12px rgba(0, 122, 255, 0.2);
-  }
-  .effect-preview {
-    width: 100%;
-    height: 48px;
-    border-radius: 6px;
-    margin-bottom: 6px;
     position: relative;
+    width: 70px;
+    height: 80px;
+  }
+
+  /* Shift alternate rows horizontally */
+  .hex-wrapper.shifted {
+    transform: translateX(35px);
+  }
+
+  .hex-cell {
+    position: relative;
+    width: 70px;
+    height: 80px;
+    background-color: rgba(255, 255, 255, 0.12); /* slight borders */
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    cursor: pointer;
+    transition: transform 0.2s, filter 0.2s, background-color 0.2s;
     overflow: hidden;
+    box-sizing: border-box;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .hex-cell:hover {
+    background-color: rgba(255, 255, 255, 0.35); /* hover border highlight */
+    transform: scale(1.05);
+    z-index: 10;
+  }
+
+  .hex-cell.active {
+    background: linear-gradient(135deg, #007aff, #00c781); /* gradient active border */
+    filter: drop-shadow(0 0 6px rgba(0, 122, 255, 0.8));
+    transform: scale(1.05);
+    z-index: 10;
+  }
+
+  /* In toggle mode, inactive cells are slightly dimmed */
+  .hex-cell.toggle-mode:not(.active) {
+    opacity: 0.55;
+  }
+  .hex-cell.toggle-mode:not(.active):hover {
+    opacity: 0.85;
+  }
+
+  .hex-check {
+    position: absolute;
+    top: 12%;
+    right: 20%;
+    font-size: 0.75rem;
+    font-weight: 900;
+    color: #00c781;
+    text-shadow: 0 0 6px rgba(0, 199, 129, 0.8);
+    pointer-events: none;
+    z-index: 6;
+    line-height: 1;
+  }
+
+  .hex-inner {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    clip-path: inherit;
+    background-color: #0b0b0e;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
   }
-  .effect-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #8c8c9a;
-    transition: color 0.2s ease;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+
+  .effect-preview {
     width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
   }
-  .effect-btn.active .effect-label {
+
+  .hex-label {
+    position: absolute;
+    top: 55%;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.8) 30%, rgba(0, 0, 0, 0.92) 70%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 3px;
+    pointer-events: none;
+    z-index: 5;
+    box-sizing: border-box;
+  }
+
+  .hex-label-text {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    white-space: normal;
+    word-break: break-word;
+    text-align: center;
+    line-height: 1.25;
+    width: 90%;
+  }
+
+  .hex-cell.active .hex-label-text {
     color: #ffffff;
   }
-  .rubik-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    width: 24px;
-    height: 24px;
-    padding: 2px;
-    background: #000;
-    border-radius: 3px;
-  }
-  .matrix-preview-text {
-    font-family: monospace;
-    font-size: 0.55rem;
-    color: #00ff00;
-    text-shadow: 0 0 2px #00ff00;
-    letter-spacing: 1px;
-  }
-  .pulse-circle {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: #007aff;
-    box-shadow: 0 0 8px #007aff;
-    animation: previewPulse 2s infinite ease-in-out;
-  }
-  @keyframes previewPulse {
-    0%, 100% { transform: scale(0.7); opacity: 0.5; }
-    50% { transform: scale(1.1); opacity: 1; }
+
+  .hex-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 </style>

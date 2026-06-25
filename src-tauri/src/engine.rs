@@ -95,6 +95,7 @@ pub struct Status {
     pub running: bool,
     pub mode: Mode,
     pub conflict: bool,
+    pub loaded_path: Option<String>,
 }
 
 enum ConnectionResult {
@@ -375,6 +376,18 @@ impl Engine {
                         }
                     };
                     last_anim_mode = Some(current_settings.mode.clone());
+
+                    let loaded_path = match &current_settings.mode {
+                        Mode::Image { path, .. } => Some(path.clone()),
+                        Mode::Gif { path, .. } => Some(path.clone()),
+                        _ => None,
+                    };
+                    {
+                        let mut st = status.lock().unwrap();
+                        st.loaded_path = loaded_path;
+                        let status_val = st.clone();
+                        let _ = app.emit("status", status_val);
+                    }
                 } else {
                     // Update active anim zoom/pan parameters without reloading from disk
                     if let Some(ref mut anim) = active_anim {
